@@ -956,12 +956,16 @@ namespace multigrid
 
         solve(n_pre_smooth, n_post_smooth);
         pcout << std::endl;
+<<<<<<< HEAD
 
         pcout << std::endl;
         pcout << std::endl;
         matvec_ghost_timing();
         pcout << std::endl;
         pcout << std::endl;
+=======
+>>>>>>> df2ea28 (rebase to the fix-dof-indices)
+
 
 
         if (cycle >= 10)
@@ -976,6 +980,7 @@ namespace multigrid
               convergence_table.set_scientific("cg_time", true);
               convergence_table.set_precision("cg_time", 3);
 
+<<<<<<< HEAD
               convergence_table.write_text(std::cout);
 
               std::cout << std::endl << std::endl;
@@ -988,6 +993,28 @@ namespace multigrid
               ghost_timing_table.set_precision("mv_ghost_only", 4);
 
               ghost_timing_table.write_text(std::cout);
+=======
+              // for (unsigned int level = 1; level <=
+              // level_matrices.max_level();
+              //      level++)
+              //   {
+              //     convergence_table.set_scientific("restrict_L_" +
+              //                                        std::to_string(level),
+              //                                      true);
+              //     convergence_table.set_precision("restrict_L_" +
+              //                                       std::to_string(level),
+              //                                     3);
+
+              //     convergence_table.set_scientific("prolong_L_" +
+              //                                        std::to_string(level),
+              //                                      true);
+              //     convergence_table.set_precision("prolong_L_" +
+              //                                       std::to_string(level),
+              //                                     3);
+              //   }
+
+              convergence_table.write_text(std::cout);
+>>>>>>> df2ea28 (rebase to the fix-dof-indices)
 
               std::cout << std::endl << std::endl;
             }

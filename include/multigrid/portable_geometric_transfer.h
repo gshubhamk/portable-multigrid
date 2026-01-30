@@ -12,6 +12,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "multigrid/portable_geometric_transfer_core.h"
+#include "multigrid/portable_geometric_transfer_core.h"
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -764,6 +765,7 @@ namespace Portable
 
   template <int dim, int fe_degree, typename number>
   class GeometricTransfer : public internal::GeometricTransferCore<dim, number>
+  class GeometricTransfer : public internal::GeometricTransferCore<dim, number>
   {
   public:
     GeometricTransfer();
@@ -780,11 +782,30 @@ namespace Portable
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
         &src) const override;
+        &src) const override;
 
     void
     restrict_and_add_internal(
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+        &src) const override;
+
+    // void
+    // update_ghost_values(
+    //   const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+    //     &vec) const;
+
+    // void
+    // compress(
+    //   LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &vec,
+    //   const VectorOperation::values op) const;
+
+
+
+    // void
+    // zero_out_ghost_values(
+    //   const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+    //     &vec) const;
         &src) const override;
 
     void
@@ -1039,6 +1060,8 @@ namespace Portable
 
     /**  FIXME: MGTransferScheme for the moment assumes only global
      * refinement, not local. */
+    /**  FIXME: MGTransferScheme for the moment assumes only global
+     * refinement, not local. */
     // correct for first scheme
     // transfer_schemes[0].n_dofs_per_cell_fine = fe_coarse.n_dofs_per_cell();
     // transfer_schemes[0].degree_fine          = fe_coarse.degree;
@@ -1235,6 +1258,10 @@ namespace Portable
 
       this->partitioner_fine = this->constraint_info_fine.finalize(
         this->dof_handler_fine->get_mpi_communicator());
+
+      this->vec_coarse.reinit(this->partitioner_coarse);
+      this->vec_fine.reinit(this->partitioner_fine);
+
 
       this->vec_coarse.reinit(this->partitioner_coarse);
       this->vec_fine.reinit(this->partitioner_fine);
