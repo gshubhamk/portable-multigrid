@@ -102,38 +102,6 @@ namespace multigrid
                                       relevant_dofs,
                                       dof_handler.get_mpi_communicator());
         }
-
-
-
-      //   Timer time;
-
-      //   for (unsigned int level = minlevel; level <= maxlevel; ++level)
-      //     {
-      //       typename SmootherType::AdditionalData smoother_data;
-      //       if (level > minlevel)
-      //         {
-      //           smoother_data.smoothing_range     = 15.;
-      //           smoother_data.degree              = degree_pre;
-      //           smoother_data.eig_cg_n_iterations = 10;
-      //           //   smoother_data.polynomial_type =
-      //           // SmootherType::AdditionalData::PolynomialType::fourth_kind;
-      //         }
-      //       else
-      //         {
-      //           smoother_data.smoothing_range     = 1e-3;
-      //           smoother_data.degree              =
-      //           numbers::invalid_unsigned_int;
-      //           smoother_data.eig_cg_n_iterations = matrix[minlevel]->m();
-      //         }
-      //       matrix[level]->compute_diagonal();
-      //       smoother_data.preconditioner =
-      //         matrix[level]->get_matrix_diagonal_inverse();
-      //       smooth[level].initialize(*matrix[level], smoother_data);
-      //     }
-      //   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-      //     std::cout << "Time initialize smoother: " << time.wall_time()
-      //               << std::endl;
-      // }
     }
     // Print a summary of computation times on the various levels
     void
@@ -165,6 +133,13 @@ namespace multigrid
         }
     }
 
+    void reset_timings()
+    {
+      for (unsigned int l = 0; l < timings.size(); ++l)
+            for (unsigned int j = 0; j < timings[l].size(); ++j)
+              timings[l][j] = 0.;
+    }
+
 
 
     // Solve with the conjugate gradient method preconditioned by the V-cycle
@@ -173,6 +148,8 @@ namespace multigrid
     std::pair<unsigned int, double>
     solve_cg()
     {
+      reset_timings();
+
       ReductionControl           solver_control(100, 1e-16, 1e-9);
       SolverCG<VectorTypeDevice> solver_cg(solver_control);
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
@@ -228,38 +205,52 @@ namespace multigrid
     void
     v_cycle(const unsigned int level) const
     {
+      
       if (level == minlevel)
         {
+          Kokkos::fence();
           Timer time;
           (coarse)(level, solution[level], defect[level]);
+          Kokkos::fence();
           timings[level][0] += time.wall_time();
           return;
         }
-
       Timer time;
+
+      Kokkos::fence();
+      time.restart();
       (smooth)[level].vmult(solution[level], defect[level]);
       // (smooth)[level].step(solution[level], defect[level]);
+      Kokkos::fence();
       timings[level][5] += time.wall_time();
 
 
+      Kokkos::fence();
       time.restart();
       (matrix)[level]->vmult(t[level], solution[level]);
       t[level].sadd(-1.0, 1.0, defect[level]);
+      Kokkos::fence();
       timings[level][0] += time.wall_time();
 
+      Kokkos::fence();
       time.restart();
       defect[level - 1] = 0;
       transfer[level]->restrict_and_add(defect[level - 1], t[level]);
+      Kokkos::fence();
       timings[level][1] += time.wall_time();
 
       v_cycle(level - 1);
 
+      Kokkos::fence();
       time.restart();
       transfer[level]->prolongate_and_add(solution[level], solution[level - 1]);
+      Kokkos::fence();
       timings[level][2] += time.wall_time();
 
+      Kokkos::fence();
       time.restart();
       (smooth)[level].step(solution[level], defect[level]);
+      Kokkos::fence();
       timings[level][5] += time.wall_time();
     }
 

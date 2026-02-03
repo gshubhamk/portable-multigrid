@@ -35,6 +35,7 @@
 #include "multigrid/portable_geometric_transfer.h"
 #include "multigrid/portable_polynomial_tranfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
+#include "operators/dummy_portable_laplace_operator.h"
 #include "operators/portable_laplace_operator.h"
 #include "portable_multigrid_solver.h"
 
@@ -119,6 +120,9 @@ namespace multigrid
     void
     solve(const unsigned int n_pre_smooth, const unsigned int n_post_smooth);
 
+    void
+    matvec_ghost_timing();
+
 
     MPI_Comm mpi_communicator;
 
@@ -149,6 +153,9 @@ namespace multigrid
 
     MGLevelObject<std::unique_ptr<Portable::LaplaceOperatorBase<dim, double>>>
       level_matrices;
+
+    MGLevelObject<std::unique_ptr<Portable::LaplaceOperatorBase<dim, double>>>
+      dummy_level_matrices;
 
     MGLevelObject<std::unique_ptr<Portable::MGTransferBase<dim, double>>>
       mg_transfers;
@@ -183,6 +190,24 @@ namespace multigrid
       {
         parent_problem.level_matrices[level] =
           std::make_unique<Portable::LaplaceOperator<dim, degree, double>>(
+            dof_handler, constraints, overlap_communication_computation);
+      }
+    };
+
+    struct DummyLaplaceOperatorRunner
+    {
+      const unsigned int              level;
+      DoFHandler<dim>                &dof_handler;
+      AffineConstraints<double>      &constraints;
+      bool                            overlap_communication_computation;
+      LaplaceProblem<dim, fe_degree> &parent_problem;
+
+      template <unsigned int degree>
+      void
+      run()
+      {
+        parent_problem.dummy_level_matrices[level] =
+          std::make_unique<Portable::DummyLaplaceOperator<dim, degree, double>>(
             dof_handler, constraints, overlap_communication_computation);
       }
     };
@@ -367,15 +392,25 @@ namespace multigrid
 
     Timer time;
     level_matrices.resize(0, level_dof_handlers.max_level());
+    dummy_level_matrices.resize(0, level_dof_handlers.max_level());
+
     for (unsigned int level = 0; level <= level_dof_handlers.max_level();
          ++level)
       {
         if (level < coarse_triangulations.size())
-          level_matrices[level] =
-            std::make_unique<Portable::LaplaceOperator<dim, 1, double>>(
-              level_dof_handlers[level],
-              level_constraints[level],
-              overlap_communication_computation);
+          {
+            level_matrices[level] =
+              std::make_unique<Portable::LaplaceOperator<dim, 1, double>>(
+                level_dof_handlers[level],
+                level_constraints[level],
+                overlap_communication_computation);
+
+            dummy_level_matrices[level] =
+              std::make_unique<Portable::DummyLaplaceOperator<dim, 1, double>>(
+                level_dof_handlers[level],
+                level_constraints[level],
+                overlap_communication_computation);
+          }
 
         else
           {
@@ -393,6 +428,23 @@ namespace multigrid
               success,
               ExcMessage(
                 "Failed to find a matching polynomial degree in dispatcher."));
+
+
+            DummyLaplaceOperatorRunner dummy_runner{
+              level,
+              level_dof_handlers[level],
+              level_constraints[level],
+              overlap_communication_computation,
+              *this};
+
+            bool dummy_success = Portable::OperatorDispatchFactory::dispatch(
+              p_level_fes[level + 1 - coarse_triangulations.size()]->degree,
+              dummy_runner);
+
+            Assert(
+              dummy_success,
+              ExcMessage(
+                "Failed to find a matching polynomial degree in dummy dispatcher."));
           }
       }
 
@@ -571,61 +623,6 @@ namespace multigrid
 
   template <int dim, int fe_degree>
   void
-  LaplaceProblem<dim, fe_degree>::apply_smoother(
-    const unsigned int  level,
-    VectorTypeMG       &u,
-    const VectorTypeMG &rhs,
-    const unsigned int  n_smoothing_steps)
-  {
-    if (level == 0)
-      mg_smoothers[0].vmult(u, rhs);
-    else
-      for (unsigned int step = 0; step < n_smoothing_steps; ++step)
-        {
-          level_matrices[level]->vmult(u, rhs);
-          u.sadd(-1., rhs);
-
-          mg_smoothers[level].vmult(u, rhs);
-
-          u += rhs;
-        }
-  }
-
-  // template <int dim, int fe_degree>
-  // void
-  // LaplaceProblem<dim, fe_degree>::solve()
-  // {
-  //   const auto &system_matrix = *level_matrices.back();
-
-  //   Portable::
-  //     VCycleMultigrid<dim, double, Portable::MGTransferBase<dim, double>>
-  //       mg_preconditioner(level_matrices, mg_transfers, mg_smoothers, 2, 2);
-
-  //   SolverControl solver_control(system_rhs_device.size(),
-  //                                1e-12 * system_rhs_device.l2_norm());
-
-  //   SolverCG<LinearAlgebra::distributed::Vector<double,
-  //   MemorySpace::Default>>
-  //     cg(solver_control);
-
-  //   solution_device = 0;
-  //   cg.solve(system_matrix,
-  //            solution_device,
-  //            system_rhs_device,
-  //            mg_preconditioner);
-
-  // LinearAlgebra::ReadWriteVector<double> rw_vector(locally_owned_dofs);
-  // rw_vector.import_elements(solution_device, VectorOperation::insert);
-  // ghost_solution_host.import_elements(rw_vector, VectorOperation::insert);
-
-  // level_constraints.back().distribute(ghost_solution_host);
-
-  // ghost_solution_host.update_ghost_values();
-  // }
-
-
-  template <int dim, int fe_degree>
-  void
   LaplaceProblem<dim, fe_degree>::solve(const unsigned int n_pre_smooth,
                                         const unsigned int n_post_smooth)
   {
@@ -662,6 +659,8 @@ namespace multigrid
         time_cg = std::min(time.wall_time(), time_cg);
         pcout << "Time solve CG              " << time.wall_time() << "\n";
       }
+
+    solver.print_wall_times();
 
     double best_mv = 1e10;
     for (unsigned int i = 0; i < 5; ++i)
@@ -794,6 +793,135 @@ namespace multigrid
         }
   }
 
+
+  template <int dim, int fe_degree>
+  void
+  LaplaceProblem<dim, fe_degree>::matvec_ghost_timing()
+  {
+    // std::vector<std::array<double, 3>> timings(
+    //   dummy_level_matrices.max_level() + 1);
+
+    const bool ghost_exchange_on = true;
+    const bool computation_on    = true;
+
+    MGLevelObject<
+      LinearAlgebra::distributed::Vector<double, MemorySpace::Default>>
+      dummy_solution(0, dummy_level_matrices.max_level()),
+      dummy_rhs(0, dummy_level_matrices.max_level());
+
+    for (unsigned int level = 0; level <= dummy_level_matrices.max_level();
+         ++level)
+      {
+        dummy_level_matrices[level]->initialize_dof_vector(
+          dummy_solution[level]);
+
+        dummy_level_matrices[level]->initialize_dof_vector(dummy_rhs[level]);
+      }
+
+    Timer time;
+
+    for (unsigned int level = 0; level <= dummy_level_matrices.max_level();
+         ++level)
+      {
+        double best_mv_both    = 1e10;
+        double best_only_ghost = 1e10;
+        double best_only_comp  = 1e10;
+
+        for (unsigned int i = 0; i < 5; ++i)
+          {
+            const unsigned int n_mv =
+              dof_handler.n_dofs() < 10000000 ? 200 : 50;
+
+            {
+              Kokkos::fence();
+              time.restart();
+              for (unsigned int i = 0; i < n_mv; ++i)
+                dummy_level_matrices[level]->vmult(dummy_solution[level],
+                                                   dummy_rhs[level],
+                                                   ghost_exchange_on,
+                                                   computation_on);
+              Kokkos::fence();
+
+              Utilities::MPI::MinMaxAvg stat =
+                Utilities::MPI::min_max_avg(time.wall_time() / n_mv,
+                                            MPI_COMM_WORLD);
+
+              best_mv_both = std::min(best_mv_both, stat.max);
+
+              // if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+              //   std::cout << "matvec time ghost+compute " << " L = " << level
+              //             << ": " << stat.min << " [p" << stat.min_index <<
+              //             "] "
+              //             << stat.avg << " " << stat.max << " [p"
+              //             << stat.max_index << "]"
+              //             << " DoFs/s: " << dof_handler.n_dofs() / stat.max
+              //             << std::endl;
+            }
+
+            {
+              Kokkos::fence();
+              time.restart();
+              for (unsigned int i = 0; i < n_mv; ++i)
+                dummy_level_matrices[level]->vmult(dummy_solution[level],
+                                                   dummy_rhs[level],
+                                                   ghost_exchange_on,
+                                                   !computation_on);
+              Kokkos::fence();
+
+              Utilities::MPI::MinMaxAvg stat =
+                Utilities::MPI::min_max_avg(time.wall_time() / n_mv,
+                                            MPI_COMM_WORLD);
+
+              best_only_ghost = std::min(best_only_ghost, stat.max);
+
+              // if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+              //   std::cout << "matvec time ghost only    " << " L = " << level
+              //             << ": " << stat.min << " [p" << stat.min_index <<
+              //             "] "
+              //             << stat.avg << " " << stat.max << " [p"
+              //             << stat.max_index << "]"
+              //             << " DoFs/s: " << dof_handler.n_dofs() / stat.max
+              //             << std::endl;
+            }
+
+            {
+              Kokkos::fence();
+              time.restart();
+              for (unsigned int i = 0; i < n_mv; ++i)
+                dummy_level_matrices[level]->vmult(dummy_solution[level],
+                                                   dummy_rhs[level],
+                                                   !ghost_exchange_on,
+                                                   computation_on);
+              Kokkos::fence();
+
+              Utilities::MPI::MinMaxAvg stat =
+                Utilities::MPI::min_max_avg(time.wall_time() / n_mv,
+                                            MPI_COMM_WORLD);
+
+              best_only_comp = std::min(best_only_comp, stat.max);
+
+              // if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+              //   std::cout << "matvec time compute only  " << " L = " << level
+              //             << ": " << stat.min << " [p" << stat.min_index <<
+              //             "] "
+              //             << stat.avg << " " << stat.max << " [p"
+              //             << stat.max_index << "]"
+              //             << " DoFs/s: " << dof_handler.n_dofs() / stat.max
+              //             << std::endl;
+            }
+          }
+          
+        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+          std::cout << "Best timings for ndof = " << dof_handler.n_dofs()
+                    << "   on level " << level
+                    << "|  ghost & compute =  " << best_mv_both
+                    << "   ghost only      =  " << best_only_ghost
+                    << "   compute only    =  " << best_only_comp
+
+                    << std::endl;
+      }
+  }
+
   template <int dim, int fe_degree>
   void
   LaplaceProblem<dim, fe_degree>::run(const std::size_t  min_size,
@@ -897,6 +1025,12 @@ namespace multigrid
         pcout << "Total setup time: " << setup_time << std::endl;
 
         solve(n_pre_smooth, n_post_smooth);
+        pcout << std::endl;
+
+        pcout << std::endl;
+        pcout << std::endl;
+        matvec_ghost_timing();
+        pcout << std::endl;
         pcout << std::endl;
 
 
