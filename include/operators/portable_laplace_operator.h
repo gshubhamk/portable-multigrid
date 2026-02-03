@@ -375,17 +375,12 @@ namespace Portable
     get_vector_partitioner() const override;
 
     void
-    vmult(LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
-          const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-                    &src,
-          const bool ghost_exchange_on,
-          const bool computation_on) const override
-    {
-      (void)dst;
-      (void)src;
-      (void)ghost_exchange_on;
-      (void)computation_on;
-    }
+    vmult_dummy(
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+                &src,
+      const bool ghost_exchange_on,
+      const bool computation_on) const override;
 
   private:
     using TeamHandle = Kokkos::TeamPolicy<
@@ -406,6 +401,16 @@ namespace Portable
                                                                        &src,
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst)
       const;
+
+    void
+    cell_loop_dummy(
+      const LocalLaplaceOperator<dim, fe_degree, number> &cell_operator,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+                                                                       &src,
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
+      const bool ghost_exchange_on,
+      const bool computation_on) const;
+
 
     void
     cell_loop_dummy(
