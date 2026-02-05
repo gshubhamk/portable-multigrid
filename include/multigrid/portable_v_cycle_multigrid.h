@@ -59,23 +59,12 @@ namespace Portable
     VCycleMultigrid(
       const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices,
       const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers,
-      const MGLevelObject<SmootherType>                     &mg_smoothers,
-      const VectoreType                                     &right_hand_side,
-      const unsigned int pre_smoothing_steps,
-      const unsigned int post_smoothing_steps);
+      const MGLevelObject<SmootherType>                     &mg_smoothers);
 
     void
     vmult(VectorType &dst, const VectorType &src) const;
 
-    std::pair<unsigned int, double>
-    solve_cg();
-
   private:
-    void
-    smooth(VectorType        &u,
-           const VectorType  &rhs,
-           const unsigned int level) const;
-
     void
     v_cycle(const unsigned int level) const;
 
@@ -97,81 +86,46 @@ namespace Portable
     /**
      * The coarse solver
      */
-    MGCoarseFromSmoother<VectorTypeDevice, MGLevelObject<SmootherType>> coarse;
-
-    const VectorType &rhs;
+    MGCoarseFromSmoother<VectorType, MGLevelObject<SmootherType>> coarse;
 
     /**
      * The solution update after the multigrid step.
      */
-    mutable MGLevelObject<VectorTypeDevice> solution;
+    mutable MGLevelObject<VectorType> solution;
 
     /**
      * Input vector for the cycle. Contains the defect of the outer method
      * projected to the multilevel vectors.
      */
-    mutable MGLevelObject<VectorTypeDevice> defect;
+    mutable MGLevelObject<VectorType> defect;
 
     /**
      * Auxiliary vector.
      */
-    mutable MGLevelObject<VectorTypeDevice> t;
-
-
-    const unsigned int pre_smoothing_steps;
-    const unsigned int post_smoothing_steps;
+    mutable MGLevelObject<VectorType> t;
   };
 
   template <int dim, typename number, typename TransferType>
   VCycleMultigrid<dim, number, TransferType>::VCycleMultigrid(
     const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices,
     const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers,
-    const MGLevelObject<SmootherType>                     &mg_smoothers,
-    const VectoreType                                     &right_hand_side,
-    const unsigned int                                     pre_smoothing_steps,
-    const unsigned int                                     post_smoothing_steps)
+    const MGLevelObject<SmootherType>                     &mg_smoothers)
     : minlevel(mg_matrices.min_level())
     , maxlevel(mg_matrices.max_level())
     , mg_matrices(mg_matrices)
     , mg_transfers(mg_transfers)
     , mg_smoothers(mg_smoothers)
     , coarse(mg_smoothers, false)
-    , rhs(right_hand_side)
     , solution(minlevel, maxlevel)
     , defect(minlevel, maxlevel)
     , t(minlevel, maxlevel)
-    , pre_smoothing_steps(pre_smoothing_steps)
-    , post_smoothing_steps(post_smoothing_steps)
   {
-    Assert(pre_smoothing_steps == post_smoothing_steps,
-           ExcNotImplemented("Change of pre- and post-smoother degree "
-                             "currently not possible with deal.II"));
     for (unsigned int level = minlevel; level <= maxlevel; ++level)
       {
         mg_matrices[level]->initialize_dof_vector(solution[level]);
         defect[level] = solution[level];
         t[level]      = solution[level];
       }
-  }
-
-  std::pair<unsigned int, double>
-  solve_cg()
-  {
-    ReductionControl solver_control(100, 1e-16, 1e-9);
-
-    SolverCG<VectorType> solver_cg(solver_control);
-
-    VectorType solution_update = solution[maxlevel];
-    solution_update            = 0;
-
-    solver_cg.solve(*mg_matrices[maxlevel], solution_update, rhs, *this);
-
-    solution[maxlevel] = solution_update;
-
-    return std::make_pair(solver_control.last_step(),
-                          std::pow(solver_control.last_value() /
-                                     solver_control.initial_value(),
-                                   1. / solver_control.last_step()));
   }
 
   template <int dim, typename number, typename TransferType>
@@ -220,11 +174,11 @@ namespace Portable
     v_cycle(level - 1);
 
     // Prolongate coarse correction and add to current solution
-    mg_transfers[level]->prolongate_and_add(solution[level], solution[level - 1]);
+    mg_transfers[level]->prolongate_and_add(solution[level],
+                                            solution[level - 1]);
 
     // Post-smoothing
-        mg_smoothers[level].step(solution[level], defect[level]);
-
+    mg_smoothers[level].step(solution[level], defect[level]);
   }
 
 
