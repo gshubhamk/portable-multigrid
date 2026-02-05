@@ -12,7 +12,6 @@
 #include <Kokkos_Core.hpp>
 
 #include "multigrid/portable_geometric_transfer_core.h"
-#include "multigrid/portable_geometric_transfer_core.h"
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -1042,8 +1041,6 @@ namespace Portable
 
     /**  FIXME: MGTransferScheme for the moment assumes only global
      * refinement, not local. */
-    /**  FIXME: MGTransferScheme for the moment assumes only global
-     * refinement, not local. */
     // correct for first scheme
     // transfer_schemes[0].n_dofs_per_cell_fine = fe_coarse.n_dofs_per_cell();
     // transfer_schemes[0].degree_fine          = fe_coarse.degree;
@@ -1240,10 +1237,6 @@ namespace Portable
 
       this->partitioner_fine = this->constraint_info_fine.finalize(
         this->dof_handler_fine->get_mpi_communicator());
-
-      this->vec_coarse.reinit(this->partitioner_coarse);
-      this->vec_fine.reinit(this->partitioner_fine);
-
 
       this->vec_coarse.reinit(this->partitioner_coarse);
       this->vec_fine.reinit(this->partitioner_fine);
