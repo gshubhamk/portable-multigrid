@@ -65,6 +65,9 @@ namespace Portable
     vmult(VectorType &dst, const VectorType &src) const;
 
   private:
+    /**
+     * Implements the v-cycle
+     */
     void
     v_cycle(const unsigned int level) const;
 
@@ -78,8 +81,22 @@ namespace Portable
      */
     unsigned int maxlevel;
 
+
+    /**
+     * The matrix for each level.
+     */
     const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices;
-    const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers;
+
+
+    /**
+     * The trasfer between each level.
+     */
+    const MGLevelObject<std::unique_ptr<TransferType>> &mg_transfers;
+
+
+    /**
+     * The smmother for each level.
+     */
 
     const MGLevelObject<SmootherType> &mg_smoothers;
 
