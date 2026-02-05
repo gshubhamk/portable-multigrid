@@ -23,6 +23,30 @@ DEAL_II_NAMESPACE_OPEN
 namespace Portable
 {
 
+  template <typename VectorType, typename SmootherType>
+  class MGCoarseFromSmoother : public MGCoarseGridBase<VectorType>
+  {
+  public:
+    MGCoarseFromSmoother(const SmootherType &mg_smoother, const bool is_empty)
+      : smoother(mg_smoother)
+      , is_empty(is_empty)
+    {}
+
+    virtual void
+    operator()(const unsigned int level,
+               VectorType        &dst,
+               const VectorType  &src) const override
+    {
+      if (is_empty)
+        return;
+      smoother[level].vmult(dst, src);
+    }
+
+    const SmootherType &smoother;
+    const bool          is_empty;
+  };
+
+
   template <int dim, typename number, typename TransferType>
   class VCycleMultigrid : public EnableObserverPointer
   {
@@ -36,11 +60,15 @@ namespace Portable
       const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices,
       const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers,
       const MGLevelObject<SmootherType>                     &mg_smoothers,
+      const VectoreType                                     &right_hand_side,
       const unsigned int pre_smoothing_steps,
       const unsigned int post_smoothing_steps);
 
     void
     vmult(VectorType &dst, const VectorType &src) const;
+
+    std::pair<unsigned int, double>
+    solve_cg();
 
   private:
     void
@@ -49,14 +77,46 @@ namespace Portable
            const unsigned int level) const;
 
     void
-    v_cycle(VectorType        &dst,
-            const VectorType  &src,
-            const unsigned int level) const;
+    v_cycle(const unsigned int level) const;
+
+    /**
+     * Lowest level of cells.
+     */
+    unsigned int minlevel;
+
+    /**
+     * Highest level of cells.
+     */
+    unsigned int maxlevel;
 
     const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices;
     const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers;
 
     const MGLevelObject<SmootherType> &mg_smoothers;
+
+    /**
+     * The coarse solver
+     */
+    MGCoarseFromSmoother<VectorTypeDevice, MGLevelObject<SmootherType>> coarse;
+
+    const VectorType &rhs;
+
+    /**
+     * The solution update after the multigrid step.
+     */
+    mutable MGLevelObject<VectorTypeDevice> solution;
+
+    /**
+     * Input vector for the cycle. Contains the defect of the outer method
+     * projected to the multilevel vectors.
+     */
+    mutable MGLevelObject<VectorTypeDevice> defect;
+
+    /**
+     * Auxiliary vector.
+     */
+    mutable MGLevelObject<VectorTypeDevice> t;
+
 
     const unsigned int pre_smoothing_steps;
     const unsigned int post_smoothing_steps;
@@ -67,132 +127,109 @@ namespace Portable
     const MGLevelObject<std::unique_ptr<LevelMatrixType>> &mg_matrices,
     const MGLevelObject<std::unique_ptr<TransferType>>    &mg_transfers,
     const MGLevelObject<SmootherType>                     &mg_smoothers,
+    const VectoreType                                     &right_hand_side,
     const unsigned int                                     pre_smoothing_steps,
     const unsigned int                                     post_smoothing_steps)
-    : mg_matrices(mg_matrices)
+    : minlevel(mg_matrices.min_level())
+    , maxlevel(mg_matrices.max_level())
+    , mg_matrices(mg_matrices)
     , mg_transfers(mg_transfers)
     , mg_smoothers(mg_smoothers)
+    , coarse(mg_smoothers, false)
+    , rhs(right_hand_side)
+    , solution(minlevel, maxlevel)
+    , defect(minlevel, maxlevel)
+    , t(minlevel, maxlevel)
     , pre_smoothing_steps(pre_smoothing_steps)
     , post_smoothing_steps(post_smoothing_steps)
-  {}
+  {
+    Assert(pre_smoothing_steps == post_smoothing_steps,
+           ExcNotImplemented("Change of pre- and post-smoother degree "
+                             "currently not possible with deal.II"));
+    for (unsigned int level = minlevel; level <= maxlevel; ++level)
+      {
+        mg_matrices[level]->initialize_dof_vector(solution[level]);
+        defect[level] = solution[level];
+        t[level]      = solution[level];
+      }
+  }
+
+  std::pair<unsigned int, double>
+  solve_cg()
+  {
+    ReductionControl solver_control(100, 1e-16, 1e-9);
+
+    SolverCG<VectorType> solver_cg(solver_control);
+
+    VectorType solution_update = solution[maxlevel];
+    solution_update            = 0;
+
+    solver_cg.solve(*mg_matrices[maxlevel], solution_update, rhs, *this);
+
+    solution[maxlevel] = solution_update;
+
+    return std::make_pair(solver_control.last_step(),
+                          std::pow(solver_control.last_value() /
+                                     solver_control.initial_value(),
+                                   1. / solver_control.last_step()));
+  }
 
   template <int dim, typename number, typename TransferType>
   void
   VCycleMultigrid<dim, number, TransferType>::vmult(VectorType       &dst,
                                                     const VectorType &src) const
   {
-    AssertDimension(dst.size(), src.size());
-    Assert(dst.get_partitioner() ==
-             mg_matrices.back()->get_vector_partitioner(),
-           ExcMessage("Vector is not correctly initialized."));
-    Assert(src.get_partitioner() ==
-             mg_matrices.back()->get_vector_partitioner(),
-           ExcMessage("Vector is not correctly initialized."));
+    for (unsigned int level = minlevel; level < maxlevel; ++level)
+      {
+        defect[level] = 0;
+      }
 
-    dst = 0;
-    v_cycle(dst, src, mg_matrices.max_level());
-  }
+    defect[maxlevel] = src;
 
-  template <int dim, typename number, typename TransferType>
-  void
-  VCycleMultigrid<dim, number, TransferType>::smooth(
-    VectorType        &u,
-    const VectorType  &rhs,
-    const unsigned int level) const
-  {
-    Assert(level >= mg_matrices.min_level() && level <= mg_matrices.max_level(),
-           ExcMessage("Level out of range"));
+    v_cycle(maxlevel);
 
-    AssertDimension(u.size(), rhs.size());
-
-    Assert(u.get_partitioner() == mg_matrices[level]->get_vector_partitioner(),
-           ExcMessage("Vector is not correctly initialized."));
-
-    Assert(rhs.get_partitioner() ==
-             mg_matrices[level]->get_vector_partitioner(),
-           ExcMessage("Vector is not correctly initialized."));
-
-
-    VectorType r, d;
-    r.reinit(u, true);
-    d.reinit(u, true);
-
-    mg_matrices[level]->vmult(r, u);
-    r.sadd(-1., rhs);
-
-    mg_smoothers[level].vmult(d, r);
-
-    u += d;
+    dst = solution[maxlevel];
   }
 
   template <int dim, typename number, typename TransferType>
   void
   VCycleMultigrid<dim, number, TransferType>::v_cycle(
-    VectorType        &dst,
-    const VectorType  &src,
     const unsigned int level) const
   {
-    {
-      Assert(level >= mg_matrices.min_level() &&
-               level <= mg_matrices.max_level(),
-             ExcMessage("Level out of range"));
+    if (level == minlevel)
+      {
+        // Accuracy on coarsest level should be comparable to overall level
+        // accuracy (~1e-3)
+        (coarse)(level, solution[level], defect[level]);
 
-      AssertDimension(dst.size(), src.size());
-      Assert(dst.get_partitioner() ==
-               mg_matrices[level]->get_vector_partitioner(),
-             ExcMessage("Vector is not correctly initialized."));
-      Assert(src.get_partitioner() ==
-               mg_matrices[level]->get_vector_partitioner(),
-             ExcMessage("Vector is not correctly initialized."));
+        return;
+      }
 
-      if (level == mg_matrices.min_level())
-        {
-          // Accuracy on coarsest level should be comparable to overall level
-          // accuracy (~1e-3)
-          smooth(dst, src, mg_matrices.min_level());
+    // Pre-smoothing
+    mg_smoothers[level].vmult(solution[level], defect[level]);
 
-          return;
-        }
+    // Compute residual
+    mg_matrices[level]->vmult(t[level], solution[level]);
+    t[level].sadd(-1.0, 1.0, defect[level]);
 
-      // Pre-smoothing
-      for (unsigned int step = 0; step < pre_smoothing_steps; ++step)
-        {
-          smooth(dst, src, level);
-        }
+    // Restrict residual to the next coarser level
+    defect[level - 1] = 0;
+    mg_transfers[level]->restrict_and_add(defect[level - 1], t[level]);
 
-      // Compute residual
-      VectorType residual;
-      mg_matrices[level]->initialize_dof_vector(residual);
-      mg_matrices[level]->vmult(residual, dst);
-      residual.sadd(-1., 1., src); // residual = src - A * dst
+    // Recursive call to v_cycle on the coarser level
+    v_cycle(level - 1);
 
-      // Restrict residual to the next coarser level
-      VectorType coarse_residual;
-      mg_matrices[level - 1]->initialize_dof_vector(coarse_residual);
+    // Prolongate coarse correction and add to current solution
+    mg_transfers[level]->prolongate_and_add(solution[level], solution[level - 1]);
 
-      mg_transfers[level]->restrict_and_add(coarse_residual, residual);
+    // Post-smoothing
+        mg_smoothers[level].step(solution[level], defect[level]);
 
-      // Initialize coarse correction
-      VectorType coarse_correction;
-      mg_matrices[level - 1]->initialize_dof_vector(coarse_correction);
-
-      // Recursive call to v_cycle on the coarser level
-      v_cycle(coarse_correction, coarse_residual, level - 1);
-
-      // Prolongate coarse correction and add to current solution
-      mg_transfers[level]->prolongate_and_add(dst, coarse_correction);
-
-      // Post-smoothing
-      for (unsigned int step = 0; step < post_smoothing_steps; ++step)
-        {
-          smooth(dst, src, level);
-        }
-    }
   }
+
 
 } // namespace Portable
 
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
-
