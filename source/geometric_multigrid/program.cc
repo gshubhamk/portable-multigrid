@@ -40,7 +40,9 @@ template <int dim, int fe_degree>
 class LaplaceProblem
 {
 public:
-  LaplaceProblem(bool overlap_communication_computation = false);
+  LaplaceProblem(const unsigned int n_pre_smooth,
+                 const unsigned int n_post_smooth,
+                 const bool         overlap_communication_computation = false);
 
   void
   run();
@@ -66,6 +68,9 @@ private:
 
   void
   solve();
+
+  void
+  post_process_solution();
 
   void
   output_results(const unsigned int cycle) const;
@@ -110,6 +115,9 @@ private:
 
   MGLevelObject<SmootherType> mg_smoothers;
 
+  const unsigned int n_pre_smooth;
+  const unsigned int n_post_smooth;
+
   bool overlap_communication_computation;
 
   ConditionalOStream pcout;
@@ -117,15 +125,24 @@ private:
 
 template <int dim, int fe_degree>
 LaplaceProblem<dim, fe_degree>::LaplaceProblem(
-  bool overlap_communication_computation)
+  const unsigned int n_pre_smooth,
+  const unsigned int n_post_smooth,
+  const bool         overlap_communication_computation)
   : mpi_communicator(MPI_COMM_WORLD)
   , triangulation(mpi_communicator)
   , fe(fe_degree)
   , dof_handler(triangulation)
-  , dirichlet_boundary_ids({{0}})
+  , n_pre_smooth(n_pre_smooth)
+  , n_post_smooth(n_post_smooth)
   , overlap_communication_computation(overlap_communication_computation)
   , pcout(std::cout, Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
-{}
+{
+  Assert(n_pre_smooth == n_post_smooth,
+         ExcNotImplemented("Change of pre- and post-smoother degree "
+                           "currently not possible with deal.II"));
+
+  dirichlet_boundary_ids.insert(0);
+}
 
 template <int dim, int fe_degree>
 void
@@ -249,7 +266,7 @@ LaplaceProblem<dim, fe_degree>::setup_smoothers()
       if (level > 0)
         {
           smoother_data.smoothing_range     = 15.;
-          smoother_data.degree              = 5;
+          smoother_data.degree              = n_pre_smooth;
           smoother_data.eig_cg_n_iterations = 10;
         }
       else
@@ -321,7 +338,7 @@ LaplaceProblem<dim, fe_degree>::solve()
   const auto &system_matrix = *level_matrices.back();
 
   Portable::VCycleMultigrid<dim, double, Portable::MGTransferBase<dim, double>>
-    mg_preconditioner(level_matrices, mg_transfers, mg_smoothers, 2, 2);
+    mg_preconditioner(level_matrices, mg_transfers, mg_smoothers);
 
   SolverControl solver_control(system_rhs_device.size(),
                                1e-12 * system_rhs_device.l2_norm());
@@ -334,7 +351,12 @@ LaplaceProblem<dim, fe_degree>::solve()
 
   pcout << "  Solver converged in " << solver_control.last_step()
         << " iterations." << std::endl;
+}
 
+template <int dim, int fe_degree>
+void
+LaplaceProblem<dim, fe_degree>::post_process_solution()
+{
   LinearAlgebra::ReadWriteVector<double> rw_vector(locally_owned_dofs);
   rw_vector.import_elements(solution_device, VectorOperation::insert);
   ghost_solution_host.import_elements(rw_vector, VectorOperation::insert);
@@ -343,6 +365,7 @@ LaplaceProblem<dim, fe_degree>::solve()
 
   ghost_solution_host.update_ghost_values();
 }
+
 
 template <int dim, int fe_degree>
 void
@@ -406,22 +429,11 @@ LaplaceProblem<dim, fe_degree>::run()
       setup_smoothers();
       assemble_rhs();
       solve();
+      post_process_solution();
       output_results(cycle);
     }
 }
 
-template <int dim, int degree>
-void
-solve_for_degree(int fe_degree)
-{
-  if (degree == fe_degree)
-    {
-      LaplaceProblem<dim, degree> laplace_problem(false);
-      laplace_problem.run();
-    }
-  else if constexpr (degree < 9)
-    solve_for_degree<dim, degree + 1>(fe_degree);
-}
 
 int
 main(int argc, char *argv[])
@@ -431,18 +443,21 @@ main(int argc, char *argv[])
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
       const int dim           = 3;
-      const int max_fe_degree = 4;
+      // const int max_fe_degree = 4;
 
-      LaplaceProblem<dim, 1> laplace_problem_1(false);
+      const unsigned int n_pre_smooth  = 3;
+      const unsigned int n_post_smooth = 3;
+
+      LaplaceProblem<dim, 1> laplace_problem_1(n_pre_smooth, n_post_smooth, false);
       laplace_problem_1.run();
 
-      LaplaceProblem<dim, 2> laplace_problem_2(false);
+      LaplaceProblem<dim, 2> laplace_problem_2(n_pre_smooth, n_post_smooth, false);
       laplace_problem_2.run();
 
-      LaplaceProblem<dim, 3> laplace_problem_3(false);
+      LaplaceProblem<dim, 3> laplace_problem_3(n_pre_smooth, n_post_smooth, false);
       laplace_problem_3.run();
 
-      LaplaceProblem<dim, 4> laplace_problem_4(false);
+      LaplaceProblem<dim, 4> laplace_problem_4(n_pre_smooth, n_post_smooth, false);
       laplace_problem_4.run();
     }
   catch (std::exception &exc)
@@ -473,4 +488,3 @@ main(int argc, char *argv[])
 
   return 0;
 }
-

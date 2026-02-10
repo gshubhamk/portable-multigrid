@@ -137,7 +137,7 @@ namespace Portable
     }
   };
 
-  //needed for MatrixFreeTools::compute_diagonal()
+  // needed for MatrixFreeTools::compute_diagonal()
   template <int dim, int fe_degree, typename number>
   class LaplaceOperatorQuad
   {
@@ -764,3 +764,4 @@ namespace Portable
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
+
