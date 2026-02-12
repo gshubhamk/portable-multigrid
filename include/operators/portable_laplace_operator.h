@@ -488,7 +488,11 @@ namespace Portable
 
     std::vector<
       Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>>
-      dof_indices_per_color;
+      dirichlet_boundary_dofs_masks;
+
+
+    std::vector<Kokkos::View<number *, MemorySpace::Default::kokkos_space>>
+      G_tensors;
   };
 
   template <int dim, int fe_degree, typename number>
@@ -512,7 +516,167 @@ namespace Portable
     matrix_free.reinit(
       mapping, dof_handler, constraints, quadrature_1d, additional_data);
 
-    setup_dof_indices_per_color();
+    setup_dirichlet_boundary_dofs_masks();
+
+    compute_G_tensors();
+  }
+
+  template <int dim, int fe_degree, typename number>
+  void
+  LaplaceOperator<dim, fe_degree, number>::vmult(
+    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src)
+    const
+  {
+    dst = 0.;
+    // LocalLaplaceOperator<dim, fe_degree, number> cell_operator;
+    // this->cell_loop(cell_operator, src, dst);
+    // matrix_free.copy_constrained_values(src, dst);
+
+    src.update_ghost_values();
+
+    DeviceVector<number> src_device(src.get_values(), src.locally_owned_size()),
+      dst_device(dst.get_values(), dst.locally_owned_size());
+
+    const auto        &colored_graph = matrix_free.get_colored_graph();
+    const unsigned int n_colors      = colored_graph.size();
+
+    for (unsigned int color = 0; color < n_colors; ++color)
+      {
+        const unsigned int n_cells = colored_graph[color].size();
+        if (n_cells > 0)
+          {
+            const auto dirichlet_boundary_dofs_mask =
+              dirichlet_boundary_dofs_masks[color];
+            const auto precomputed_data = matrix_free.get_data(color);
+
+            DeviceVector<number> src_e_vector("src_e_vector",
+                                              n_cells * n_local_dofs);
+
+            Kokkos::parallel_for(
+              "Gather_L_to_E_src",
+              Kokkos::RangePolicy<ExecutionSpace>(0, n_cells),
+              KOKKOS_LAMBDA(const int cell_id) {
+                for (unsigned int i = 0; i < n_local_dofs; ++i)
+                  {
+                    const auto global_idx =
+                      precomputed_data.local_to_global(i, cell_id);
+
+                    if (dirichlet_boundary_dofs_mask(i, cell_id) ==
+                        numbers::invalid_unsigned_int)
+                      src_e_vector(cell_id * n_local_dofs + i) = 0;
+                    else
+                      src_e_vector(cell_id * n_local_dofs + i) =
+                        src_device[global_idx];
+                  }
+              });
+
+            DeviceVector<number> dst_e_vector("dst_e_vector",
+                                              n_cells * n_local_dofs);
+            BK3::Parallel::
+              KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1, number>(
+                precomputed_data.shape_values,
+                precomputed_data.co_shape_gradients,
+                G_tensors[color],
+                src_e_vector,
+                dst_e_vector,
+                n_q_points,
+                1,
+                n_cells);
+
+            Kokkos::fence();
+
+            Kokkos::parallel_for(
+              "Scatter_E_to_L_dst",
+              Kokkos::RangePolicy<ExecutionSpace>(0, n_cells),
+              KOKKOS_LAMBDA(const int cell_id) {
+                for (unsigned int i = 0; i < n_local_dofs; ++i)
+                  {
+                    const auto global_idx =
+                      precomputed_data.local_to_global(i, cell_id);
+
+                    if (dirichlet_boundary_dofs_mask(i, cell_id) !=
+                        numbers::invalid_unsigned_int)
+                      {
+                        Kokkos::atomic_add(&dst_device[global_idx],
+                                           dst_e_vector(cell_id * n_local_dofs +
+                                                        i));
+                      }
+                  }
+              });
+
+            Kokkos::fence();
+          }
+      }
+
+    dst.compress(VectorOperation::add);
+    src.zero_out_ghost_values();
+    matrix_free.copy_constrained_values(src, dst);
+  }
+
+
+  template <int dim, int fe_degree, typename number>
+  void
+  LaplaceOperator<dim, fe_degree, number>::compute_G_tensors()
+  {
+    AssertDimension(dim, 3);
+
+    constexpr int symmetric_tensor_dim = (dim * (dim + 1)) / 2;
+
+    const auto        &colored_graph = matrix_free.get_colored_graph();
+    const unsigned int n_colors      = colored_graph.size();
+
+    G_tensors.resize(n_colors);
+
+    for (unsigned int color = 0; color < n_colors; ++color)
+      {
+        if (colored_graph[color].size() > 0)
+          {
+            const auto        &precomputed_data = matrix_free.get_data(color);
+            const unsigned int n_cells          = precomputed_data.n_cells;
+
+            const auto &inv_jacobian = precomputed_data.inv_jacobian;
+            const auto &JxW          = precomputed_data.JxW;
+
+            G_tensors[color] =
+              Kokkos::View<number *, MemorySpace::Default::kokkos_space>(
+                Kokkos::view_alloc("G_tensor_color_" + std::to_string(color),
+                                   Kokkos::WithoutInitializing),
+                symmetric_tensor_dim * n_cells * n_q_points);
+
+            auto G = G_tensors[color];
+
+            Kokkos::parallel_for(
+              "Fill_G_tensor_color" + std::to_string(color),
+              Kokkos::RangePolicy<
+                dealii::MemorySpace::Default::kokkos_space::execution_space>(
+                0, n_cells),
+              KOKKOS_LAMBDA(const int cell_id) {
+                for (unsigned int q_point = 0; q_point < n_q_points; q_point++)
+                  {
+                    number components[symmetric_tensor_dim];
+
+                    int idx = 0;
+                    for (int d1 = 0; d1 < dim; ++d1)
+                      for (int d2 = d1; d2 < dim; ++d2)
+                        {
+                          number sum = 0;
+                          for (int k = 0; k < dim; ++k)
+                            sum += inv_jacobian(q_point, cell_id, k, d1) *
+                                   inv_jacobian(q_point, cell_id, k, d2);
+                          components[idx] = JxW(q_point, cell_id) * sum;
+                          ++idx;
+                        }
+
+                    for (int c = 0; c < symmetric_tensor_dim; ++c)
+                      {
+                        G[cell_id * symmetric_tensor_dim * n_q_points +
+                          c * n_q_points + q_point] = components[c];
+                      }
+                  }
+              });
+          }
+      }
   }
 
 <<<<<<< HEAD
