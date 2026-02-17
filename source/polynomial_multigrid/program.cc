@@ -36,7 +36,9 @@ template <int dim, int fe_degree, int mg_levels>
 class LaplaceProblem
 {
 public:
-  LaplaceProblem(bool overlap_communication_computation = false);
+  LaplaceProblem(const unsigned int n_pre_smooth,
+                 const unsigned int n_post_smooth,
+                 const bool         overlap_communication_computation = false);
 
   void
   run();
@@ -52,7 +54,13 @@ private:
   setup_mg_transfers();
 
   void
+  setup_smoothers();
+
+  void
   solve();
+
+  void
+  post_process_solution();
 
   void
   output_results(const unsigned int cycle) const;
@@ -72,6 +80,12 @@ private:
   MGLevelObject<std::unique_ptr<Portable::LaplaceOperatorBase<dim, double>>>
     mg_matrices;
 
+  using SmootherType = PreconditionChebyshev<
+    Portable::LaplaceOperatorBase<dim, double>,
+    LinearAlgebra::distributed::Vector<double, MemorySpace::Default>>;
+
+  MGLevelObject<SmootherType> mg_smoothers;
+
   LinearAlgebra::distributed::Vector<double, MemorySpace::Host>
     ghost_solution_host;
   LinearAlgebra::distributed::Vector<double, MemorySpace::Default>
@@ -82,7 +96,12 @@ private:
   MGLevelObject<std::unique_ptr<Portable::MGTransferBase<dim, double>>>
     mg_transfers;
 
-  bool               overlap_communication_computation;
+  const unsigned int n_pre_smooth;
+  const unsigned int n_post_smooth;
+
+
+  bool overlap_communication_computation;
+
   ConditionalOStream pcout;
 
   struct LaplaceOperatorRunner
@@ -131,12 +150,19 @@ private:
 
 template <int dim, int fe_degree, int mg_levels>
 LaplaceProblem<dim, fe_degree, mg_levels>::LaplaceProblem(
-  bool overlap_communication_computation)
+  const unsigned int n_pre_smooth,
+  const unsigned int n_post_smooth,
+  const bool         overlap_communication_computation)
   : mpi_communicator(MPI_COMM_WORLD)
   , triangulation(mpi_communicator)
+  , n_pre_smooth(n_pre_smooth)
+  , n_post_smooth(n_post_smooth)
   , overlap_communication_computation(overlap_communication_computation)
   , pcout(std::cout, Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
 {
+  Assert(n_pre_smooth == n_post_smooth,
+         ExcNotImplemented("Change of pre- and post-smoother degree "
+                           "currently not possible with deal.II"));
   {
     Assert(mg_levels <= fe_degree,
            ExcMessage(
@@ -254,6 +280,35 @@ LaplaceProblem<dim, fe_degree, mg_levels>::setup_mg_transfers()
 
 template <int dim, int fe_degree, int mg_levels>
 void
+LaplaceProblem<dim, fe_degree, mg_levels>::setup_smoothers()
+{
+  mg_smoothers.resize(0, mg_levels - 1);
+
+  for (int level = 0; level < mg_levels; ++level)
+    {
+      typename SmootherType::AdditionalData smoother_data;
+      if (level > 0)
+        {
+          smoother_data.smoothing_range     = 15.;
+          smoother_data.degree              = n_pre_smooth;
+          smoother_data.eig_cg_n_iterations = 10;
+        }
+      else
+        {
+          smoother_data.smoothing_range     = 1e-3;
+          smoother_data.degree              = numbers::invalid_unsigned_int;
+          smoother_data.eig_cg_n_iterations = mg_matrices[0]->m();
+        }
+      mg_matrices[level]->compute_diagonal();
+      smoother_data.preconditioner =
+        mg_matrices[level]->get_matrix_diagonal_inverse();
+
+      mg_smoothers[level].initialize(*mg_matrices[level], smoother_data);
+    }
+}
+
+template <int dim, int fe_degree, int mg_levels>
+void
 LaplaceProblem<dim, fe_degree, mg_levels>::assemble_rhs()
 {
   auto &fe          = fe_collection.back();
@@ -303,45 +358,18 @@ LaplaceProblem<dim, fe_degree, mg_levels>::assemble_rhs()
   system_rhs_device.import_elements(rw_vector, VectorOperation::insert);
 }
 
+
+
 template <int dim, int fe_degree, int mg_levels>
 void
 LaplaceProblem<dim, fe_degree, mg_levels>::solve()
 {
-  auto &constraints = constraints_collection.back();
-
   auto &system_matrix_device = mg_matrices.back();
 
-  using SmootherType = PreconditionChebyshev<
-    Portable::LaplaceOperatorBase<dim, double>,
-    LinearAlgebra::distributed::Vector<double, MemorySpace::Default>>;
-
-  MGLevelObject<SmootherType> mg_smoothers;
-  mg_smoothers.resize(0, mg_levels - 1);
-
-  for (int level = 0; level < mg_levels; ++level)
-    {
-      typename SmootherType::AdditionalData smoother_data;
-      if (level > 0)
-        {
-          smoother_data.smoothing_range     = 15.;
-          smoother_data.degree              = 5;
-          smoother_data.eig_cg_n_iterations = 10;
-        }
-      else
-        {
-          smoother_data.smoothing_range     = 1e-3;
-          smoother_data.degree              = numbers::invalid_unsigned_int;
-          smoother_data.eig_cg_n_iterations = mg_matrices[0]->m();
-        }
-      mg_matrices[level]->compute_diagonal();
-      smoother_data.preconditioner =
-        mg_matrices[level]->get_matrix_diagonal_inverse();
-
-      mg_smoothers[level].initialize(*mg_matrices[level], smoother_data);
-    }
-
   Portable::VCycleMultigrid<dim, double, Portable::MGTransferBase<dim, double>>
-    mg_preconditioner(mg_matrices, mg_transfers, mg_smoothers, 2, 2);
+    mg_preconditioner(mg_matrices, mg_transfers, mg_smoothers);
+
+  solution_device = 0;
 
   SolverControl solver_control(system_rhs_device.size(),
                                1e-12 * system_rhs_device.l2_norm());
@@ -354,6 +382,13 @@ LaplaceProblem<dim, fe_degree, mg_levels>::solve()
 
   pcout << "  Solver converged in " << solver_control.last_step()
         << " iterations." << std::endl;
+}
+
+template <int dim, int fe_degree, int mg_levels>
+void
+LaplaceProblem<dim, fe_degree, mg_levels>::post_process_solution()
+{
+  auto &constraints = constraints_collection.back();
 
   LinearAlgebra::ReadWriteVector<double> rw_vector(locally_owned_dofs);
   rw_vector.import_elements(solution_device, VectorOperation::insert);
@@ -369,9 +404,8 @@ void
 LaplaceProblem<dim, fe_degree, mg_levels>::output_results(
   const unsigned int cycle) const
 {
+  (void)cycle;
 
-  (void) cycle;
-  
   auto &dof_handler = *dof_handler_collection.back();
   auto &fe          = fe_collection.back();
 
@@ -424,8 +458,10 @@ LaplaceProblem<dim, fe_degree, mg_levels>::run()
 
       setup_system();
       setup_mg_transfers();
+      setup_smoothers();
       assemble_rhs();
       solve();
+      post_process_solution();
       output_results(cycle);
 
       pcout << std::endl;
@@ -439,14 +475,17 @@ main(int argc, char *argv[])
     {
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
-      const int dim       = 2;
+      const int dim       = 3;
       const int fe_degree = 4;
       const int mg_levels = 4;
+
+      const unsigned int n_pre_smooth  = 3;
+      const unsigned int n_post_smooth = 3;
 
       const bool overlap_communication_computation = false;
 
       LaplaceProblem<dim, fe_degree, mg_levels> laplace_problem(
-        overlap_communication_computation);
+        n_pre_smooth, n_post_smooth, overlap_communication_computation);
 
       laplace_problem.run();
     }
@@ -478,4 +517,3 @@ main(int argc, char *argv[])
 
   return 0;
 }
-

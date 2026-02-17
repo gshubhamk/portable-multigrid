@@ -11,7 +11,7 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "base/portable_mg_transfer_base.h"
+#include "multigrid/portable_geometric_transfer_core.h"
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -763,22 +763,10 @@ namespace Portable
   } // namespace h_mg_transfer
 
   template <int dim, int fe_degree, typename number>
-  class GeometricTransfer : public MGTransferBase<dim, number>
+  class GeometricTransfer : public internal::GeometricTransferCore<dim, number>
   {
   public:
     GeometricTransfer();
-
-    void
-    prolongate_and_add(
-      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
-      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const override;
-
-    void
-    restrict_and_add(
-      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
-      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const override;
 
     void
     reinit(const MatrixFree<dim, number>   &mf_coarse,
@@ -791,20 +779,19 @@ namespace Portable
     prolongate_and_add_internal(
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const;
+        &src) const override;
 
     void
     restrict_and_add_internal(
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const;
+        &src) const override;
 
     void
     setup_weights();
 
     void
     setup_dof_indices();
-
 
     std::vector<h_mg_transfer::MGTransferScheme<dim, fe_degree, number>>
       transfer_schemes;
@@ -822,17 +809,6 @@ namespace Portable
     const unsigned int mg_level_coarse = numbers::invalid_unsigned_int;
     const unsigned int mg_level_fine   = numbers::invalid_unsigned_int;
 
-    /**
-     * Partitioner needed by the intermediate vector.
-     */
-    std::shared_ptr<const Utilities::MPI::Partitioner> partitioner_coarse;
-
-    /**
-     * Partitioner needed by the intermediate vector.
-     */
-    std::shared_ptr<const Utilities::MPI::Partitioner> partitioner_fine;
-
-
     dealii::internal::MatrixFreeFunctions::
       ConstraintInfo<dim, VectorizedArray<number, 1>, types::global_dof_index>
         constraint_info_fine;
@@ -846,96 +822,6 @@ namespace Portable
   template <int dim, int fe_degree, typename number>
   GeometricTransfer<dim, fe_degree, number>::GeometricTransfer()
   {}
-
-
-  template <int dim, int fe_degree, typename number>
-  void
-  GeometricTransfer<dim, fe_degree, number>::prolongate_and_add(
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
-    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src)
-    const
-  {
-    MemorySpace::Default::kokkos_space::execution_space exec;
-
-    Assert(src.get_partitioner() ==
-               matrix_free_coarse->get_vector_partitioner() ||
-             src.get_partitioner() == this->partitioner_coarse,
-           ExcMessage("Coarse vector is not initialized correctly."));
-
-    Assert(dst.get_partitioner() ==
-               matrix_free_fine->get_vector_partitioner() ||
-             dst.get_partitioner() == this->partitioner_fine,
-           ExcMessage("Fine vector is not initialized correctly."));
-
-    /** FIXME:: "smarter" copy */
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default> vec_coarse;
-    vec_coarse.reinit(this->partitioner_coarse);
-    vec_coarse = src;
-    vec_coarse.update_ghost_values();
-
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default> vec_fine;
-    vec_fine.reinit(this->partitioner_fine);
-
-    this->prolongate_and_add_internal(vec_fine, vec_coarse);
-
-    vec_fine.compress(VectorOperation::add);
-
-    /** FIXME: "smarter" copy */
-    dst += vec_fine;
-    dst.compress(VectorOperation::insert);
-
-    src.zero_out_ghost_values();
-
-    Assert(dst.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
-           ExcMessage(
-             "Fine vector is not handled correctly after during prolongation"));
-  }
-
-  template <int dim, int fe_degree, typename number>
-  void
-  GeometricTransfer<dim, fe_degree, number>::restrict_and_add(
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
-    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src)
-    const
-  {
-    MemorySpace::Default::kokkos_space::execution_space exec;
-
-    Assert(dst.get_partitioner() ==
-               matrix_free_coarse->get_vector_partitioner() ||
-             dst.get_partitioner() == this->partitioner_coarse,
-           ExcMessage("Fine vector is not initialized correctly."));
-    Assert(src.get_partitioner() ==
-               matrix_free_fine->get_vector_partitioner() ||
-             src.get_partitioner() == this->partitioner_fine,
-           ExcMessage("Coarse vector is not initialized correctly."));
-
-    src.update_ghost_values();
-
-    /** FIXME:: "smarter" copy */
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default> vec_fine;
-    vec_fine.reinit(this->partitioner_fine);
-    vec_fine = src;
-    vec_fine.update_ghost_values();
-
-    LinearAlgebra::distributed::Vector<number, MemorySpace::Default> vec_coarse;
-    vec_coarse.reinit(this->partitioner_coarse);
-
-    this->restrict_and_add_internal(vec_coarse, vec_fine);
-
-    vec_coarse.compress(VectorOperation::add);
-
-    /** FIXME: "smarter" copy */
-    dst += vec_coarse;
-
-    dst.compress(VectorOperation::insert);
-
-    src.zero_out_ghost_values();
-
-
-    Assert(
-      dst.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
-      ExcMessage("Fine vector is not handled correctly during restriction."));
-  }
 
   template <int dim, int fe_degree, typename number>
   void
@@ -1151,8 +1037,8 @@ namespace Portable
         scheme.n_coarse_cells = 0;
       }
 
-    /**  FIXME: MGTransferScheme for the moment assumes only global refinement,
-     * not local. */
+    /**  FIXME: MGTransferScheme for the moment assumes only global
+     * refinement, not local. */
     // correct for first scheme
     // transfer_schemes[0].n_dofs_per_cell_fine = fe_coarse.n_dofs_per_cell();
     // transfer_schemes[0].degree_fine          = fe_coarse.degree;
@@ -1349,6 +1235,10 @@ namespace Portable
 
       this->partitioner_fine = this->constraint_info_fine.finalize(
         this->dof_handler_fine->get_mpi_communicator());
+
+      this->vec_coarse.reinit(this->partitioner_coarse);
+      this->vec_fine.reinit(this->partitioner_fine);
+
 
       // if constexpr (running_in_debug_mode())
       //   {
