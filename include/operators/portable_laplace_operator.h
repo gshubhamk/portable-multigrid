@@ -137,7 +137,7 @@ namespace Portable
     }
   };
 
-  //needed for MatrixFreeTools::compute_diagonal()
+  // needed for MatrixFreeTools::compute_diagonal()
   template <int dim, int fe_degree, typename number>
   class LaplaceOperatorQuad
   {
@@ -207,7 +207,7 @@ namespace Portable
               numbers::invalid_unsigned_int)
             values(i) = 0.;
           else
-            values(i) = src[precomputed_data.local_to_global(i, cell_id)];
+            values(i) = src[data->dirichlet_boundary_dofs_mask(i, cell_id)];
         });
 
       data->team_member.team_barrier();
@@ -329,7 +329,7 @@ namespace Portable
           [&](const int &i) {
             if (data->dirichlet_boundary_dofs_mask(i, cell_id) !=
                 numbers::invalid_unsigned_int)
-              dst[precomputed_data.local_to_global(i, cell_id)] += values(i);
+              dst[data->dirichlet_boundary_dofs_mask(i, cell_id)] += values(i);
           });
       else
         Kokkos::parallel_for(
@@ -338,7 +338,7 @@ namespace Portable
             if (data->dirichlet_boundary_dofs_mask(i, cell_id) !=
                 numbers::invalid_unsigned_int)
               Kokkos::atomic_add(
-                &dst[precomputed_data.local_to_global(i, cell_id)], values(i));
+                &dst[data->dirichlet_boundary_dofs_mask(i, cell_id)], values(i));
           });
     }
   }
@@ -481,8 +481,10 @@ namespace Portable
     this->dirichlet_boundary_dofs_masks.resize(n_colors);
 
     std::vector<types::global_dof_index> local_dof_indices(n_local_dofs);
-    std::vector<types::global_dof_index> lexicographic_dof_indices(
+    std::vector<types::global_dof_index> subdomain_local_dof_indices(
       n_local_dofs);
+
+    const auto &partitioner = matrix_free.get_vector_partitioner();
 
     for (unsigned int color = 0; color < n_colors; ++color)
       {
@@ -503,16 +505,32 @@ namespace Portable
             auto boundary_dofs_mask_host = Kokkos::create_mirror_view(
               this->dirichlet_boundary_dofs_masks[color]);
 
-            auto cell = graph.cbegin(), end_cell = graph.cend();
 
-            for (unsigned int cell_id = 0; cell != end_cell; ++cell, ++cell_id)
+            for (unsigned int cell_id = 0; cell_id < mf_data.n_cells; ++cell_id)
               {
-                (*cell)->get_dof_indices(local_dof_indices);
+                auto triacell = graph[cell_id];
+
+                typename DoFHandler<dim>::cell_iterator cell(
+                  &(dof_handler.get_triangulation()),
+                  triacell->level(),
+                  triacell->index(),
+                  &dof_handler);
+
+                cell->get_dof_indices(local_dof_indices);
+
+                triacell->get_dof_indices(subdomain_local_dof_indices);
+
+                if (partitioner)
+                  for (auto &index : local_dof_indices)
+                    index = partitioner->global_to_local(index);
 
                 for (unsigned int i = 0; i < n_local_dofs; ++i)
                   {
                     const auto global_dof = local_dof_indices[lex_numbering[i]];
-                    if (constraints->is_constrained(global_dof))
+                    const auto subdomain_local_dof =
+                      subdomain_local_dof_indices[lex_numbering[i]];
+
+                    if (constraints->is_constrained(subdomain_local_dof))
                       boundary_dofs_mask_host(i, cell_id) =
                         numbers::invalid_unsigned_int;
                     else

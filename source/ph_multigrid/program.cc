@@ -566,7 +566,7 @@ main(int argc, char *argv[])
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
       const int dim           = 3;
-      const int max_fe_degree = 1;
+      const int max_fe_degree = 4;
 
       for (int fe_degree = 1; fe_degree <= max_fe_degree; ++fe_degree)
         {
