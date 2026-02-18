@@ -518,10 +518,6 @@ namespace Portable
     matrix_free.copy_constrained_values(src, dst);
   }
 
-
-
-
-
   template <int dim, int fe_degree, typename number>
   void
 <<<<<<< HEAD
