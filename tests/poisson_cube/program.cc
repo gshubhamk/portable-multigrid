@@ -969,13 +969,6 @@ namespace multigrid
         pcout << std::endl;
 
 
-        pcout << std::endl;
-        pcout << std::endl;
-        matvec_ghost_timing();
-        pcout << std::endl;
-        pcout << std::endl;
-
-
         if (cycle >= 10)
           if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
             {
