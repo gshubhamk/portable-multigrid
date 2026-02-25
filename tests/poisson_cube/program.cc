@@ -35,7 +35,6 @@
 #include "multigrid/portable_geometric_transfer.h"
 #include "multigrid/portable_polynomial_tranfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
-#include "operators/dummy_portable_laplace_operator.h"
 #include "operators/portable_laplace_operator.h"
 #include "portable_multigrid_solver.h"
 
@@ -150,9 +149,6 @@ namespace multigrid
 
     MGLevelObject<std::unique_ptr<Portable::LaplaceOperatorBase<dim, double>>>
       level_matrices;
-
-    MGLevelObject<std::unique_ptr<Portable::LaplaceOperatorBase<dim, double>>>
-      dummy_level_matrices;
 
     MGLevelObject<std::unique_ptr<Portable::MGTransferBase<dim, double>>>
       mg_transfers;
@@ -740,11 +736,6 @@ namespace multigrid
     if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
       for (unsigned int level = 1; level <= level_matrices.max_level(); level++)
         {
-          // convergence_table.add_value("restrict_L_" + std::to_string(level),
-          //                             restrict_per_level[level - 1]);
-          // convergence_table.add_value("prolong_L_" + std::to_string(level),
-          //                             restrict_per_level[level - 1]);
-
           std::cout << "Best timings for ndof = " << dof_handler.n_dofs()
                     << "   on level " << level
                     << "|  restriction = " << restrict_per_level[level - 1]

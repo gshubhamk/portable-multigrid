@@ -8,10 +8,6 @@
 
 #include <vector>
 
-// #include "templated_kokkos_kernels.hpp"
-// #include "serial_kernels.hpp"
-
->>>>>>> 768ee08 (add BK3 kernel)
 DEAL_II_NAMESPACE_OPEN
 
 namespace BK3
@@ -28,90 +24,42 @@ namespace BK3
       Kokkos::View<number *,
                    MemorySpace::Default::kokkos_space::execution_space>;
 
-
-    // template <int dim, int n_local_dofs_1d, int n_q_points_1d, typename
-    // number> void KokkosKernel_1D_Block_wrapper(
-    //   const DeviceView<number> shape_values_device,
-    //   const DeviceView<number> co_shape_gradients_device,
-    //   const DeviceView<number> G_device,
-    //   const DeviceView<number> in_device,
-    //   DeviceView<number>       out_device,
-    //   const unsigned int       numThreads,
-    //   const unsigned int       threadsPerBlock,
-    //   const unsigned int       n_cells)
-    // {
-    //   const unsigned int n_tests = 1u;
-
-
-    //   ::BK3::Parallel::KokkosKernel_1D_Block<number,
-    //                                          n_q_points_1d,
-    //                                          n_q_points_1d,
-    //                                          n_q_points_1d>(
-    //     shape_values_device.data(),
-    //     shape_values_device.data(),
-    //     shape_values_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     G_device.data(),
-    //     in_device.data(),
-    //     out_device.data(),
-    //     numThreads,
-    //     threadsPerBlock,
-    //     n_cells,
-    //     n_tests);
-    // }
-
-    // template <int dim, int n_local_dofs_1d, int n_q_points_1d, typename
-    // number> void KokkosKernel_serial_wrapper(
-    //   const DeviceView<number> shape_values_device,
-    //   const DeviceView<number> co_shape_gradients_device,
-    //   const DeviceView<number> G_device,
-    //   const DeviceView<number> in_device,
-    //   DeviceView<number>       out_device,
-    //   const unsigned int       n_cells)
-    // {
-
-    //   ::BK3::Serial::SumFactorization<number>(
-    //     n_q_points_1d,
-    //     n_q_points_1d,
-    //     n_q_points_1d,
-    //     n_cells,
-    //     shape_values_device.data(),
-    //     shape_values_device.data(),
-    //     shape_values_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     co_shape_gradients_device.data(),
-    //     G_device.data(),
-    //     in_device.data(),
-    //     out_device.data());
-    // }
-
-
+    using DoFIndicesView =
+      Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>;
+    using DoFIndicesView =
+      Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>;
 
     template <int dim, int n_local_dofs_1d, int n_q_points_1d, typename number>
     void
-    KokkosKernel_1D_Block(const DeviceView<number> shape_values_device,
-                          const DeviceView<number> co_shape_gradients_device,
-                          const DeviceView<number> G_device,
-                          const DeviceView<number> in_device,
-                          DeviceView<number>       out_device,
-                          const unsigned int       numThreads,
-                          const unsigned int       threadsPerBlock,
-                          const unsigned int       n_cells)
+    KokkosKernel_1D_Block(
+      const DeviceView<number> shape_values_device,
+      const DeviceView<number> co_shape_gradients_device,
+      const DeviceView<number> G_device,
+      const DeviceView<number> in_device,
+      DeviceView<number>       out_device,
+      const DoFIndicesView     dof_indices,
+      const unsigned int       n_cells,
+      unsigned int             numThreads      = numbers::invalid_unsigned_int,
+      unsigned int             threadsPerBlock = numbers::invalid_unsigned_int)
     {
       constexpr unsigned n_q_points_total = Utilities::pow(n_q_points_1d, dim);
       constexpr unsigned n_local_dofs_total =
         Utilities::pow(n_local_dofs_1d, dim);
 
+      if (numThreads == numbers::invalid_unsigned_int)
+        numThreads = n_cells * n_q_points_total / 2;
+
+
+      if (threadsPerBlock == numbers::invalid_unsigned_int)
+        threadsPerBlock = n_q_points_total;
+
       unsigned int numBlocks =
         numThreads / (std::min(n_q_points_total, threadsPerBlock));
       if (numBlocks == 0)
         numBlocks = 1;
-      {
-        /*FIXME: check for consistency */
 
+
+      {
         const unsigned int scratch_pad_size =
           5 * n_q_points_total; // working scratch arrays: s_wsp0, s_wsp1,
                                 // rqr,rqq, rqt
@@ -144,7 +92,6 @@ namespace BK3
             SharedView<number> s_wsp1(team_member.team_shmem(),
                                       n_q_points_total);
 
-
             const unsigned int threadIdx = team_member.team_rank();
             const unsigned int blockSize = team_member.team_size();
 
@@ -158,13 +105,14 @@ namespace BK3
                   shape_values_scratch[tid] = shape_values_device[tid];
                 }
 
-            for (unsigned int tid = threadIdx;
-                 tid < n_q_points_1d * n_q_points_1d;
-                 tid += blockSize)
-              {
-                co_shape_gradients_scratch[tid] =
-                  co_shape_gradients_device[tid];
-              }
+              for (unsigned int tid = threadIdx;
+                   tid < n_q_points_1d * n_q_points_1d;
+                   tid += blockSize)
+                {
+                  co_shape_gradients_scratch[tid] =
+                    co_shape_gradients_device[tid];
+                }
+            }
 
             team_member.team_barrier();
 
@@ -176,22 +124,32 @@ namespace BK3
 
             while (cell_index < n_cells)
               {
-                // step-1 : Copy from in to the scratch values
-                for (unsigned int tid = threadIdx; tid < n_local_dofs_total;
-                     tid += blockSize)
-                  {
-                    s_wsp0[tid] =
-                      in_device[cell_index * n_local_dofs_total + tid];
-                  }
                 team_member.team_barrier();
+                {
+                  // step-1 : Copy from in to the scratch values
+                  for (unsigned int tid = threadIdx; tid < n_local_dofs_total;
+                       tid += blockSize)
+                    {
+                      const int i = tid / (n_local_dofs_1d * n_local_dofs_1d);
+                      const int j =
+                        (tid % (n_local_dofs_1d * n_local_dofs_1d)) /
+                        n_local_dofs_1d;
+                      const int k = tid % n_local_dofs_1d;
 
-                // for (unsigned int i = 0; i < n_local_dofs_total; ++i)
-                //   {
-                //     std::cout << s_wsp0[i] << " , ";
-                //   }
-                // std::cout << std::endl;
-                // std::cout << std::endl;
+                      const int local_idx =
+                        i * n_local_dofs_1d * n_local_dofs_1d +
+                        j * n_local_dofs_1d + k;
 
+                      const unsigned int dof_index =
+                        dof_indices(local_idx, cell_index);
+
+                      if (dof_index == numbers::invalid_unsigned_int)
+                        s_wsp0[tid] = 0;
+                      else
+                        s_wsp0[tid] = in_device[dof_index];
+                    }
+                }
+                team_member.team_barrier();
 
                 if constexpr (dim == 3)
                   {
@@ -245,9 +203,6 @@ namespace BK3
                       }
                     team_member.team_barrier();
 
-
-
->>>>>>> 768ee08 (add BK3 kernel)
                     // step-4 : direction 2
                     for (unsigned int tid = threadIdx;
                          tid < n_q_points_1d * n_q_points_1d * n_q_points_1d;
@@ -271,13 +226,6 @@ namespace BK3
                       }
                     team_member.team_barrier();
                   }
-
-                // for (unsigned int i = 0; i < n_local_dofs_total; ++i)
-                //   {
-                //     std::cout << s_wsp1[i] << " , ";
-                //   }
-                // std::cout << std::endl;
-                // std::cout << std::endl;
 
                 // Geometric vals
                 number Grr, Grs, Grt, Gss, Gst, Gtt;
