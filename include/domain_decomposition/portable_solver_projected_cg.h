@@ -114,6 +114,8 @@ namespace Portable
     double residual_norm = r.l2_norm();
     solver_state         = this->iteration_status(0, residual_norm, x);
 
+    preconditioner.reset_timings();
+
     if (solver_state != SolverControl::iterate)
       return;
 
@@ -151,8 +153,8 @@ namespace Portable
         else
           p.equ(1., direction);
 
-        A.vmult(v, p);
-
+        // A.vmult(v, p);
+        preconditioner.vmult_interface(v, p);
 
         const number p_dot_A_dot_p = p * v;
         Assert(std::abs(p_dot_A_dot_p) != 0., ExcDivideByZero());

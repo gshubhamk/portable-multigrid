@@ -186,6 +186,10 @@ private:
   double             setup_time;
   ConditionalOStream pcout;
   ConditionalOStream time_details;
+
+  ConvergenceTable timing_table;
+
+  unsigned int n_cells_total;
 };
 template <int dim, int fe_degree>
 LaplaceProblem<dim, fe_degree>::LaplaceProblem(const unsigned int n_pre_smooth,
@@ -259,6 +263,8 @@ LaplaceProblem<dim, fe_degree>::create_subdomain_triangulations(
       if (cycle > 0)
         coarse_triangulation.refine_global(1);
 
+      n_cells_total = coarse_triangulation.n_global_active_cells();
+
       const TriangulationDescription::Description<dim> description =
         TriangulationDescription::Utilities::
           create_description_from_triangulation(coarse_triangulation,
@@ -291,18 +297,18 @@ LaplaceProblem<dim, fe_degree>::create_subdomain_triangulations(
                << time.cpu_time() << "s/" << time.wall_time() << 's'
                << std::endl;
 
-  const double subdomain_diameter = Utilities::MPI::max(
-    GridTools::diameter(
-      level_subdomain_triangulations.back()->get_triangulation()),
-    mpi_communicator);
+  // const double subdomain_diameter = Utilities::MPI::max(
+  //   GridTools::diameter(
+  //     level_subdomain_triangulations.back()->get_triangulation()),
+  //   mpi_communicator);
 
-  const double subdomain_mesh_size = Utilities::MPI::max(
-    GridTools::maximal_cell_diameter(
-      level_subdomain_triangulations.back()->get_triangulation()),
-    mpi_communicator);
+  // const double subdomain_mesh_size = Utilities::MPI::max(
+  //   GridTools::maximal_cell_diameter(
+  //     level_subdomain_triangulations.back()->get_triangulation()),
+  //   mpi_communicator);
 
 
-  pcout << "H/h = " << subdomain_diameter / subdomain_mesh_size << std::endl;
+  // pcout << "H/h = " << subdomain_diameter / subdomain_mesh_size << std::endl;
 }
 
 template <int dim, int fe_degree>
@@ -750,10 +756,22 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   solution_interface_device.update_ghost_values();
 
   Kokkos::fence();
+  const double time_solve = time.wall_time();
 
   pcout << "           Interface solver converged in "
         << solver_control.last_step() << " iterations.    (CPU/wall) "
         << time.cpu_time() << "s/" << time.wall_time() << 's' << std::endl;
+
+  const std::array<double, 4> timings = bnn_preconditioner->get_timings();
+
+  timing_table.add_value("cells", n_cells_total);
+  timing_table.add_value("dofs", level_dof_handlers.back().n_dofs());
+  timing_table.add_value("Dirichlet", timings[0]);
+  timing_table.add_value("Neumann", timings[1]);
+  timing_table.add_value("Coarse", timings[2]);
+  timing_table.add_value("Project", timings[3]);
+  timing_table.add_value("CG time", time_solve);
+  timing_table.add_value("Iterations", solver_control.last_step());
 }
 
 template <int dim, int fe_degree>
@@ -920,7 +938,7 @@ template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::run()
 {
-  for (unsigned int cycle = 0; cycle < 9; ++cycle)
+  for (unsigned int cycle = 0; cycle < 12; ++cycle)
     {
       pcout << "Cycle " << cycle << std::endl;
 
@@ -954,11 +972,41 @@ LaplaceProblem<dim, fe_degree>::run()
 
       // test_coarse_problem();
 
-      postprocess_subdomain_solution();
+      // postprocess_subdomain_solution();
 
-      output_results(cycle);
+      // output_results(cycle);
 
       // test_triangulation();
+
+      if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        {
+          timing_table.set_scientific("Dirichlet", true);
+          timing_table.set_precision("Dirichlet", 3);
+          timing_table.set_scientific("Neumann", true);
+          timing_table.set_precision("Neumann", 3);
+          timing_table.set_scientific("Coarse", true);
+          timing_table.set_precision("Coarse", 3);
+          timing_table.set_scientific("Project", true);
+          timing_table.set_precision("Project", 3);
+          timing_table.set_scientific("CG time", true);
+          timing_table.set_precision("CG time", 3);
+
+          timing_table.write_text(std::cout);
+
+          std::cout << std::endl << std::endl;
+
+
+          // ghost_timing_table.set_scientific("mv_ghost_and_compute", true);
+          // ghost_timing_table.set_precision("mv_ghost_and_compute", 4);
+          // ghost_timing_table.set_scientific("mv_compute_only", true);
+          // ghost_timing_table.set_precision("mv_compute_only", 4);
+          // ghost_timing_table.set_scientific("mv_ghost_only", true);
+          // ghost_timing_table.set_precision("mv_ghost_only", 4);
+
+          // ghost_timing_table.write_text(std::cout);
+
+          // std::cout << std::endl << std::endl;
+        }
     }
 }
 
@@ -969,7 +1017,7 @@ main(int argc, char *argv[])
     {
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
-      constexpr int dim       = 2;
+      constexpr int dim       = 3;
       constexpr int fe_degree = 1;
 
       const unsigned int n_pre_smooth  = 5;

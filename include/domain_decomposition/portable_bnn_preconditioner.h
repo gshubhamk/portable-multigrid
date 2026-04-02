@@ -2,9 +2,9 @@
 #define portable_bnn_preconditioner_h
 
 
+#include "base/portable_subdomain_laplace_operator_base.h"
 #include "domain_decomposition/portable_schur_interface_operator.h"
 #include "domain_decomposition/subdomain_dof_handler.h"
-#include "base/portable_subdomain_laplace_operator_base.h"
 
 
 DEAL_II_NAMESPACE_OPEN
@@ -17,9 +17,8 @@ namespace Portable
   {
   public:
     BNNPreconditioner(
-      const SchurInterfaceOperator<dim, number> &interface_operator,
-      const SubdomainLaplaceOperatorBase<dim, number>
-        &subdomain_operator);
+      const SchurInterfaceOperator<dim, number>       &interface_operator,
+      const SubdomainLaplaceOperatorBase<dim, number> &subdomain_operator);
 
     void
     vmult(LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
@@ -53,6 +52,18 @@ namespace Portable
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
         &interface_vector) const;
 
+    void
+    reset_timings() const;
+
+
+    const std::array<double, 4> &
+    get_timings() const;
+
+    void
+    vmult_interface(
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+        &src) const;
 
   private:
     ObserverPointer<const SchurInterfaceOperator<dim, number>>
@@ -79,11 +90,19 @@ namespace Portable
     mutable std::vector<number> temp_coarse_gather;
     mutable Vector<number>      temp_coarse_rhs;
     mutable Vector<number>      temp_coarse_solution;
+
+    /**
+     * timings[0] = Dirichler solve
+     * timings[1] = Neumann solve
+     * timings[2] = coarse solve
+     * timings[3] = projection step
+     */
+    mutable std::array<double, 4> timings;
   };
 
   template <int dim, typename number>
   BNNPreconditioner<dim, number>::BNNPreconditioner(
-    const SchurInterfaceOperator<dim, number>   &interface_operator,
+    const SchurInterfaceOperator<dim, number>       &interface_operator,
     const SubdomainLaplaceOperatorBase<dim, number> &subdomain_operator)
     : interface_operator(&interface_operator)
     , subdomain_operator(&subdomain_operator)
@@ -103,6 +122,20 @@ namespace Portable
     temp_coarse_solution.reinit(n_subdomains);
   }
 
+  template <int dim, typename number>
+  void
+  BNNPreconditioner<dim, number>::reset_timings() const
+  {
+    for (unsigned int i = 0; i < timings.size(); ++i)
+      timings[i] = 0.;
+  }
+
+  template <int dim, typename number>
+  const std::array<double, 4> &
+  BNNPreconditioner<dim, number>::get_timings() const
+  {
+    return timings;
+  }
 
   template <int dim, typename number>
   void
@@ -122,7 +155,38 @@ namespace Portable
       ExcMessage(
         "This function expects a vector initialized by SubdomainDoFHandler's interface vector partitioner."));
 
+    Kokkos::fence();
+    Timer time;
     this->interface_operator->neumann_solve_subdomain(dst, src);
+
+    Kokkos::fence();
+    timings[1] += time.wall_time();
+  }
+
+  template <int dim, typename number>
+  void
+  BNNPreconditioner<dim, number>::vmult_interface(
+    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src)
+    const
+  {
+    Assert(
+      dst.get_partitioner() ==
+        this->subdomain_dof_handler->get_interface_vector_partitioner(),
+      ExcMessage(
+        "This function expects a vector initialized by SubdomainDoFHandler's interface vector partitioner."));
+    Assert(
+      src.get_partitioner() ==
+        this->subdomain_dof_handler->get_interface_vector_partitioner(),
+      ExcMessage(
+        "This function expects a vector initialized by SubdomainDoFHandler's interface vector partitioner."));
+
+    Kokkos::fence();
+    Timer time;
+    this->interface_operator->vmult(dst, src);
+
+    Kokkos::fence();
+    timings[0] += time.wall_time();
   }
 
   /**
@@ -156,13 +220,26 @@ namespace Portable
 
     temp_interface = 0.;
 
+    Kokkos::fence();
+    Timer time;
     // dst = S*tmp
     this->interface_operator->vmult(temp_interface, src);
 
+    Kokkos::fence();
+    const double time_dirichlet = time.wall_time();
+    timings[0] += time_dirichlet;
+
+    time.restart();
     // tmp = R0^T*S_0^{-1}*R0*dst
     this->balance(dst, temp_interface);
 
+    Kokkos::fence();
+    timings[2] += time.wall_time();
+
     dst.sadd(-1., src);
+
+    Kokkos::fence();
+    timings[3] += time.wall_time() + time_dirichlet;
   }
 
   /**
