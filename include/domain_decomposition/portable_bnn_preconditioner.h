@@ -38,6 +38,14 @@ namespace Portable
         &src) const;
 
     void
+    balance_dummy(
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+                &src,
+      const bool computation_on,
+      const bool communication_on) const;
+
+    void
     setup_coarse_matrix();
 
     void
@@ -287,6 +295,50 @@ namespace Portable
 
     // project back to the global interface space
     this->coarse_to_global_interface(dst, this->temp_coarse_solution);
+  }
+
+  template <int dim, typename number>
+  void
+  BNNPreconditioner<dim, number>::balance_dummy(
+    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src,
+    const bool computation_on,
+    const bool communication_on) const
+  {
+    Assert(
+      dst.get_partitioner() ==
+        this->subdomain_dof_handler->get_interface_vector_partitioner(),
+      ExcMessage(
+        "This function expects a vector initialized by SubdomainDoFHandler's \
+             interface vector partitioner."));
+    Assert(
+      src.get_partitioner() ==
+        this->subdomain_dof_handler->get_interface_vector_partitioner(),
+      ExcMessage(
+        "This function expects a vector initialized by SubdomainDoFHandler's \
+            interface vector partitioner."));
+
+    this->temp_coarse_rhs = 0.;
+
+    // project from global interface to coarse space
+    if (communication_on)
+      this->global_interface_to_coarse(this->temp_coarse_rhs, src);
+
+    if (computation_on)
+      {
+        // solve coarse problem
+        if (this->this_subdomain == this->coarse_problem_rank)
+          {
+            this->temp_coarse_solution = 0.;
+
+            this->coarse_matrix.vmult(this->temp_coarse_solution,
+                                      this->temp_coarse_rhs);
+          }
+      }
+
+    // project back to the global interface space
+    if (communication_on)
+      this->coarse_to_global_interface(dst, this->temp_coarse_solution);
   }
 
 

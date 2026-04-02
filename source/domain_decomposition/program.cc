@@ -102,6 +102,9 @@ private:
   solve_interface();
 
   void
+  matvec_ghost_timing();
+
+  void
   postprocess_subdomain_solution();
 
   void
@@ -188,6 +191,8 @@ private:
   ConditionalOStream time_details;
 
   ConvergenceTable timing_table;
+
+  ConvergenceTable ghost_timing_table;
 
   unsigned int n_cells_total;
 };
@@ -781,6 +786,143 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   timing_table.add_value("CG time/iter", time_solve / iterations);
 }
 
+
+template <int dim, int fe_degree>
+void
+LaplaceProblem<dim, fe_degree>::matvec_ghost_timing()
+{
+  const bool communication_on = true;
+  const bool computation_on   = true;
+
+  LinearAlgebra::distributed::Vector<double, MemorySpace::Default>
+    dummy_solution, dummy_rhs;
+  level_subdomain_dof_handlers.back().initialize_interface_dof_vector(
+    dummy_solution);
+  dummy_rhs.reinit(dummy_solution);
+
+  dummy_rhs = 1.;
+
+  Timer time;
+
+
+  std::array<double, 2> best_mv_both{{1e10, 1e10}};
+  std::array<double, 2> best_only_ghost{{1e10, 1e10}};
+  std::array<double, 2> best_only_comp{{1e10, 1e10}};
+
+  for (unsigned int i = 0; i < 5; ++i)
+    {
+      const unsigned int n_mv = 50;
+
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          interface_operator->vmult_dummy(dummy_solution,
+                                          dummy_rhs,
+                                          communication_on,
+                                          communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_mv_both[0] = std::min(best_mv_both[0], stat.max);
+      }
+
+
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          bnn_preconditioner->balance_dummy(dummy_solution,
+                                      dummy_rhs,
+                                      computation_on,
+                                      communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_mv_both[1] = std::min(best_mv_both[1], stat.max);
+      }
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          interface_operator->vmult_dummy(dummy_solution,
+                                          dummy_rhs,
+                                          !computation_on,
+                                          communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_only_ghost[0] = std::min(best_only_ghost[0], stat.max);
+      }
+
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          bnn_preconditioner->balance_dummy(dummy_solution,
+                                      dummy_rhs,
+                                      !computation_on,
+                                      communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_only_ghost[1] = std::min(best_only_ghost[1], stat.max);
+      }
+
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          interface_operator->vmult_dummy(dummy_solution,
+                                          dummy_rhs,
+                                          computation_on,
+                                          !communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_only_comp[0] = std::min(best_only_comp[0], stat.max);
+      }
+
+      {
+        Kokkos::fence();
+        time.restart();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          bnn_preconditioner->balance_dummy(dummy_solution,
+                                      dummy_rhs,
+                                      computation_on,
+                                      !communication_on);
+        Kokkos::fence();
+
+        Utilities::MPI::MinMaxAvg stat =
+          Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+        best_only_comp[1] = std::min(best_only_comp[1], stat.max);
+      }
+    }
+
+
+  ghost_timing_table.add_value("cells", n_cells_total);
+  ghost_timing_table.add_value("dofs", level_dof_handlers.back().n_dofs());
+
+  ghost_timing_table.add_value("subdomain_total", best_mv_both[0]);
+  ghost_timing_table.add_value("subdomain_compute", best_only_comp[0]);
+  ghost_timing_table.add_value("subdomain_communicate", best_only_ghost[0]);
+
+  ghost_timing_table.add_value("coarse_total", best_mv_both[1]);
+  ghost_timing_table.add_value("coarse_compute", best_only_comp[1]);
+  ghost_timing_table.add_value("coarse_communicate", best_only_ghost[1]);
+}
+
 template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::postprocess_subdomain_solution()
@@ -977,6 +1119,8 @@ LaplaceProblem<dim, fe_degree>::run()
 
       solve_interface();
 
+      matvec_ghost_timing();
+
       // test_coarse_problem();
 
       // postprocess_subdomain_solution();
@@ -1013,16 +1157,24 @@ LaplaceProblem<dim, fe_degree>::run()
           std::cout << std::endl << std::endl;
 
 
-          // ghost_timing_table.set_scientific("mv_ghost_and_compute", true);
-          // ghost_timing_table.set_precision("mv_ghost_and_compute", 4);
-          // ghost_timing_table.set_scientific("mv_compute_only", true);
-          // ghost_timing_table.set_precision("mv_compute_only", 4);
-          // ghost_timing_table.set_scientific("mv_ghost_only", true);
-          // ghost_timing_table.set_precision("mv_ghost_only", 4);
+          ghost_timing_table.set_scientific("subdomain_total", true);
+          ghost_timing_table.set_precision("subdomain_total", 4);
+          ghost_timing_table.set_scientific("subdomain_compute", true);
+          ghost_timing_table.set_precision("subdomain_compute", 4);
+          ghost_timing_table.set_scientific("subdomain_communicate", true);
+          ghost_timing_table.set_precision("subdomain_communicate", 4);
 
-          // ghost_timing_table.write_text(std::cout);
 
-          // std::cout << std::endl << std::endl;
+          ghost_timing_table.set_scientific("coarse_total", true);
+          ghost_timing_table.set_precision("coarse_total", 4);
+          ghost_timing_table.set_scientific("coarse_compute", true);
+          ghost_timing_table.set_precision("coarse_compute", 4);
+          ghost_timing_table.set_scientific("coarse_communicate", true);
+          ghost_timing_table.set_precision("coarse_communicate", 4);
+
+          ghost_timing_table.write_text(std::cout);
+
+          std::cout << std::endl << std::endl;
         }
     }
 }
