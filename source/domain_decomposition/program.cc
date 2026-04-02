@@ -64,6 +64,9 @@ public:
   void
   run();
 
+  void
+  test_coarse_problem();
+
 private:
   void
   create_subdomain_triangulations(unsigned int n_refinement_cycles);
@@ -103,9 +106,6 @@ private:
 
   void
   output_results(const unsigned int cycle) const;
-
-  void
-  test_coarse_problem();
 
   void
   test_triangulation(int n_refinements);
@@ -762,6 +762,8 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
         << solver_control.last_step() << " iterations.    (CPU/wall) "
         << time.cpu_time() << "s/" << time.wall_time() << 's' << std::endl;
 
+  const auto iterations = std::max(solver_control.last_step(), 1u);
+
   const std::array<double, 4> timings = bnn_preconditioner->get_timings();
 
   timing_table.add_value("cells", n_cells_total);
@@ -772,6 +774,11 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   timing_table.add_value("Project", timings[3]);
   timing_table.add_value("CG time", time_solve);
   timing_table.add_value("Iterations", solver_control.last_step());
+  timing_table.add_value("Dirichlet/iter", timings[0] / iterations);
+  timing_table.add_value("Neumann/iter", timings[1] / iterations);
+  timing_table.add_value("Coarse/iter", timings[2] / iterations);
+  timing_table.add_value("Project/iter", timings[3] / iterations);
+  timing_table.add_value("CG time/iter", time_solve / iterations);
 }
 
 template <int dim, int fe_degree>
@@ -990,6 +997,16 @@ LaplaceProblem<dim, fe_degree>::run()
           timing_table.set_precision("Project", 3);
           timing_table.set_scientific("CG time", true);
           timing_table.set_precision("CG time", 3);
+          timing_table.set_scientific("Dirichlet/iter", true);
+          timing_table.set_precision("Dirichlet/iter", 3);
+          timing_table.set_scientific("Neumann/iter", true);
+          timing_table.set_precision("Neumann/iter", 3);
+          timing_table.set_scientific("Coarse/iter", true);
+          timing_table.set_precision("Coarse/iter", 3);
+          timing_table.set_scientific("Project/iter", true);
+          timing_table.set_precision("Project/iter", 3);
+          timing_table.set_scientific("CG time/iter", true);
+          timing_table.set_precision("CG time/iter", 3);
 
           timing_table.write_text(std::cout);
 
