@@ -174,8 +174,24 @@ namespace Portable
 
             Kokkos::fence();
 
+
+            // BK3::Parallel::
+            //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+            //   number>(
+            //     precomputed_data.shape_values,
+            //     precomputed_data.co_shape_gradients,
+            //     G_tensors[color],
+            //     src_device,
+            //     dst_device,
+            //     dof_indices_per_color[color],
+            //     n_cells,
+            //     numBlocks,
+            //     threadsPerBlock);
+
+
+
             BK3::Parallel::
-              KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1, number>(
+              KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
                 precomputed_data.shape_values,
                 precomputed_data.co_shape_gradients,
                 G_tensors[color],
@@ -240,19 +256,33 @@ namespace Portable
 
                 Kokkos::fence();
 
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  dof_indices_per_color[color],
-                  n_cells,
-                  numBlocks,
-                  threadsPerBlock);
+
+                // BK3::Parallel::KokkosKernel_1D_Block<dim,
+                //                                      fe_degree + 1,
+                //                                      fe_degree + 1,
+                //                                      number>(
+                //   precomputed_data.shape_values,
+                //   precomputed_data.co_shape_gradients,
+                //   G_tensors[color],
+                //   src_device,
+                //   dst_device,
+                //   dof_indices_per_color[color],
+                //   n_cells,
+                //   numBlocks,
+                //   threadsPerBlock);
+
+
+                BK3::Parallel::
+                  KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+                    precomputed_data.shape_values,
+                    precomputed_data.co_shape_gradients,
+                    G_tensors[color],
+                    src_device,
+                    dst_device,
+                    dof_indices_per_color[color],
+                    n_cells,
+                    numBlocks,
+                    threadsPerBlock);
 
                 Kokkos::fence();
               }
@@ -265,6 +295,8 @@ namespace Portable
         src.zero_out_ghost_values();
         matrix_free.copy_constrained_values(src, dst);
       }
+
+      std::cout << "After vmult_dummy\n";
   }
 
 

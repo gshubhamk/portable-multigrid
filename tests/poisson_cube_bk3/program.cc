@@ -615,6 +615,7 @@ namespace multigrid
                n_pre_smooth,
                n_post_smooth);
 
+
     Timer time;
 
     Utilities::System::MemoryStats stats;
@@ -625,7 +626,6 @@ namespace multigrid
     pcout << "Memory stats [MB]: " << memory.min << " [p" << memory.min_index
           << "] " << memory.avg << " " << memory.max << " [p"
           << memory.max_index << "]" << std::endl;
-
 
     double                          time_cg = 1e10;
     std::pair<unsigned int, double> cg_details;
@@ -804,10 +804,13 @@ namespace multigrid
         best_only_ghost = 1e10;
         best_only_comp  = 1e10;
 
-        for (unsigned int i = 0; i < 5; ++i)
+        // for (unsigned int i = 0; i < 5; ++i)
+        for (unsigned int i = 0; i < 1; ++i)
           {
-            const unsigned int n_mv =
-              dof_handler.n_dofs() < 10000000 ? 200 : 50;
+            // const unsigned int n_mv =
+            //   dof_handler.n_dofs() < 10000000 ? 200 : 50;
+
+            const unsigned int n_mv = 1;
 
             {
               Kokkos::fence();
@@ -870,12 +873,12 @@ namespace multigrid
                     << std::endl;
       }
 
-    ghost_timing_table.add_value("cells",
-                                 triangulation.n_global_active_cells());
-    ghost_timing_table.add_value("dofs", dof_handler.n_dofs());
-    ghost_timing_table.add_value("mv_ghost_and_compute", best_mv_both);
-    ghost_timing_table.add_value("mv_compute_only", best_only_comp);
-    ghost_timing_table.add_value("mv_ghost_only", best_only_ghost);
+    // ghost_timing_table.add_value("cells",
+    //                              triangulation.n_global_active_cells());
+    // ghost_timing_table.add_value("dofs", dof_handler.n_dofs());
+    // ghost_timing_table.add_value("mv_ghost_and_compute", best_mv_both);
+    // ghost_timing_table.add_value("mv_compute_only", best_only_comp);
+    // ghost_timing_table.add_value("mv_ghost_only", best_only_ghost);
   }
 
   template <int dim, int fe_degree>
@@ -980,7 +983,7 @@ namespace multigrid
 
         pcout << "Total setup time: " << setup_time << std::endl;
 
-        solve(n_pre_smooth, n_post_smooth);
+        // solve(n_pre_smooth, n_post_smooth);
         pcout << std::endl;
 
         pcout << std::endl;
@@ -990,33 +993,33 @@ namespace multigrid
         pcout << std::endl;
 
 
-        if (cycle >= 10)
-          if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-            {
-              convergence_table.set_scientific("mv_outer", true);
-              convergence_table.set_precision("mv_outer", 3);
-              convergence_table.set_scientific("mv_inner", true);
-              convergence_table.set_precision("mv_inner", 3);
-              convergence_table.set_scientific("cg_reduction", true);
-              convergence_table.set_precision("cg_reduction", 3);
-              convergence_table.set_scientific("cg_time", true);
-              convergence_table.set_precision("cg_time", 3);
+        // if (cycle >= 10)
+        //   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        //     {
+        //       convergence_table.set_scientific("mv_outer", true);
+        //       convergence_table.set_precision("mv_outer", 3);
+        //       convergence_table.set_scientific("mv_inner", true);
+        //       convergence_table.set_precision("mv_inner", 3);
+        //       convergence_table.set_scientific("cg_reduction", true);
+        //       convergence_table.set_precision("cg_reduction", 3);
+        //       convergence_table.set_scientific("cg_time", true);
+        //       convergence_table.set_precision("cg_time", 3);
 
-              convergence_table.write_text(std::cout);
+        //       convergence_table.write_text(std::cout);
 
-              std::cout << std::endl << std::endl;
+        //       std::cout << std::endl << std::endl;
 
-              ghost_timing_table.set_scientific("mv_ghost_and_compute", true);
-              ghost_timing_table.set_precision("mv_ghost_and_compute", 4);
-              ghost_timing_table.set_scientific("mv_compute_only", true);
-              ghost_timing_table.set_precision("mv_compute_only", 4);
-              ghost_timing_table.set_scientific("mv_ghost_only", true);
-              ghost_timing_table.set_precision("mv_ghost_only", 4);
+        //       ghost_timing_table.set_scientific("mv_ghost_and_compute", true);
+        //       ghost_timing_table.set_precision("mv_ghost_and_compute", 4);
+        //       ghost_timing_table.set_scientific("mv_compute_only", true);
+        //       ghost_timing_table.set_precision("mv_compute_only", 4);
+        //       ghost_timing_table.set_scientific("mv_ghost_only", true);
+        //       ghost_timing_table.set_precision("mv_ghost_only", 4);
 
-              ghost_timing_table.write_text(std::cout);
+        //       ghost_timing_table.write_text(std::cout);
 
-              std::cout << std::endl << std::endl;
-            }
+        //       std::cout << std::endl << std::endl;
+        //     }
       }
   }
   template <int dim, int min_degree, int max_degree>
