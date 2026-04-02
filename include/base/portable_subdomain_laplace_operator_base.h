@@ -100,6 +100,43 @@ namespace Portable
     get_subdomain_dof_handler() const = 0;
   };
 
+  class SubdomainOperatorDispatchFactory
+  {
+  public:
+    static constexpr unsigned int max_degree = 4;
+
+    template <typename OperatorRunner>
+    static bool
+    dispatch(const unsigned int runtime_degree, OperatorRunner &runner)
+    {
+      return recursive_dispatch<OperatorRunner, max_degree>(runtime_degree,
+                                                            runner);
+    }
+
+  private:
+    template <typename OperatorRunner, unsigned int degree>
+    static bool
+    recursive_dispatch(const unsigned int runtime_degree,
+                       OperatorRunner    &runner)
+    {
+      if (runtime_degree == degree)
+        {
+          runner.template run<degree>();
+          return true;
+        }
+      else if constexpr (degree > 1)
+        {
+          return recursive_dispatch<OperatorRunner, degree - 1>(runtime_degree,
+                                                                runner);
+        }
+      else
+        {
+          return false;
+        }
+    }
+  };
+
+
 } // namespace Portable
 
 DEAL_II_NAMESPACE_CLOSE

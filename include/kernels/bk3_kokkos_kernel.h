@@ -823,6 +823,15 @@ namespace BK3
 
             while (cell_index < nelmt)
               {
+
+                unsigned int cell_id = cell_index;
+                // if (cell_range_ids.size() > 0)
+                //   cell_id = cell_range_ids(cell_index);
+                // else
+                //   cell_id = cell_index;
+
+                // std::cout << "cell_id: " << cell_id << std::endl;
+
                 team_member.team_barrier();
                 {
                   // step-1 : Copy from in to the scratch values
@@ -1061,9 +1070,7 @@ namespace BK3
                     const unsigned int dof_index = dof_indices(tid, cell_index);
 
                     if (dof_index != numbers::invalid_unsigned_int)
-                      {
-                        Kokkos::atomic_add(&out_device[dof_index], s_wsp0[tid]);
-                      }
+                      Kokkos::atomic_add(&out_device[dof_index], s_wsp0[tid]);
                   }
                 team_member.team_barrier();
 

@@ -12,6 +12,7 @@
 
 #include "base/portable_subdomain_laplace_operator_base.h"
 #include "domain_decomposition/subdomain_dof_handler.h"
+#include "kernels/bk3_kokkos_kernel.h"
 #include "kernels/portable_local_laplace_operator.h"
 #include "operators/portable_laplace_operator_quad.h"
 
@@ -102,6 +103,9 @@ namespace Portable
     const SubdomainDoFHandler<dim> &
     get_subdomain_dof_handler() const override;
 
+    void
+    compute_G_tensors();
+
   private:
     using TeamHandle = Kokkos::TeamPolicy<
       MemorySpace::Default::kokkos_space::execution_space>::member_type;
@@ -191,6 +195,9 @@ namespace Portable
 
     LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
       interface_weights;
+
+    std::vector<Kokkos::View<number *, MemorySpace::Default::kokkos_space>>
+      G_tensors;
   };
 
   template <int dim, int fe_degree, typename number>
@@ -223,6 +230,8 @@ namespace Portable
     matrix_free.initialize_dof_vector(temp_vector_work);
 
     setup_dof_indices_per_color(constraints);
+
+    compute_G_tensors();
   }
 
   template <int dim, int fe_degree, typename number>
@@ -250,12 +259,53 @@ namespace Portable
     const
   {
     dst = 0.;
-
     LocalLaplaceOperator<dim, fe_degree, number> cell_operator;
-
     this->cell_loop(cell_operator, src, dst);
-
     matrix_free.copy_constrained_values(src, dst);
+
+    // dst = 0.;
+
+    // DeviceVector<number> src_device(src.get_values(), src.size()),
+    //   dst_device(dst.get_values(), dst.size());
+
+    // src.update_ghost_values();
+
+    // const auto        &colored_graph = matrix_free.get_colored_graph();
+    // const unsigned int n_colors      = colored_graph.size();
+
+    // for (unsigned int color = 0; color < n_colors; ++color)
+    //   {
+    //     const unsigned int n_cells = colored_graph[color].size();
+
+    //     // std::cout << "color: " << color << ", n_cells: " << n_cells
+    //     //           << std::endl;
+
+    //     if (n_cells > 0)
+    //       {
+    //         const auto &precomputed_data = matrix_free.get_data(color);
+
+    //         Kokkos::fence();
+
+    //         BK3::Parallel::
+    //           KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+    //           number>(
+    //             precomputed_data.shape_values,
+    //             precomputed_data.co_shape_gradients,
+    //             G_tensors[color],
+    //             src_device,
+    //             dst_device,
+    //             interior_dof_indices_per_color[color],
+    //             n_cells,
+    //             1u,
+    //             1u);
+
+    //         Kokkos::fence();
+    //       }
+    //   }
+
+    // dst.compress(VectorOperation::add);
+    // src.zero_out_ghost_values();
+    // matrix_free.copy_constrained_values(src, dst);
   }
 
   template <int dim, int fe_degree, typename number>
@@ -266,22 +316,53 @@ namespace Portable
     const
   {
     dst = 0.;
-
     LocalLaplaceOperator<dim, fe_degree, number> cell_operator;
-
     this->cell_loop_neumann(cell_operator, src, dst);
 
-    DeviceVector<number> t_dst(dst.get_values(), dst.size());
-    DeviceVector<number> t_src(src.get_values(), src.size());
+    // dst = 0.;
 
-    const auto boundary_dofs = this->physical_boundary_dof_indices;
+    DeviceVector<number> src_device(src.get_values(), src.size()),
+      dst_device(dst.get_values(), dst.size());
+
+    // const auto        &colored_graph = matrix_free.get_colored_graph();
+    // const unsigned int n_colors      = colored_graph.size();
+
+    // for (unsigned int color = 0; color < n_colors; ++color)
+    //   {
+    //     const unsigned int n_cells = colored_graph[color].size();
+
+    //     if (n_cells > 0)
+    //       {
+    //         const auto &precomputed_data = matrix_free.get_data(color);
+
+    //         Kokkos::fence();
+
+    //         BK3::Parallel::
+    //           KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+    //           number>(
+    //             precomputed_data.shape_values,
+    //             precomputed_data.co_shape_gradients,
+    //             G_tensors[color],
+    //             src_device,
+    //             dst_device,
+    //             plain_dof_indices_per_color[color],
+    //             n_cells,
+    //             1u,
+    //             1u);
+
+    //         Kokkos::fence();
+    //       }
+    //   }
+
 
     // copy physical constrained values
+    const auto boundary_dofs = this->physical_boundary_dof_indices;
+
     if (boundary_dofs.size() > 0)
       Kokkos::parallel_for(
         "work", boundary_dofs.size(), KOKKOS_LAMBDA(const int i) {
-          const auto idx = boundary_dofs(i);
-          t_dst(idx)     = t_src(idx);
+          const auto idx  = boundary_dofs(i);
+          dst_device(idx) = src_device(idx);
         });
   }
 
@@ -293,22 +374,57 @@ namespace Portable
     const
   {
     dst = 0.;
-
     LocalLaplaceOperator<dim, fe_degree, number> cell_operator;
-
     this->cell_range_loop(cell_operator, src, dst);
 
-    // copy constrained values only for physical boundary dofs
-    DeviceVector<number> t_dst(dst.get_values(), dst.size());
-    DeviceVector<number> t_src(src.get_values(), src.size());
+    // dst = 0.;
 
+    DeviceVector<number> src_device(src.get_values(), src.size()),
+      dst_device(dst.get_values(), dst.size());
+
+    // const auto        &colored_graph = matrix_free.get_colored_graph();
+    // const unsigned int n_colors      = colored_graph.size();
+
+    // for (unsigned int color = 0; color < n_colors; ++color)
+    //   {
+    //     const unsigned int n_interface_cells
+    //     =interface_cell_ids_per_color[color].size();
+
+    //     if (n_interface_cells > 0)
+    //       {
+    //         const auto &precomputed_data = matrix_free.get_data(color);
+
+    //         Kokkos::fence();
+
+    //         BK3::Parallel::
+    //           KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+    //           number>(
+    //             precomputed_data.shape_values,
+    //             precomputed_data.co_shape_gradients,
+    //             G_tensors[color],
+    //             src_device,
+    //             dst_device,
+    //             plain_dof_indices_per_color[color],
+    //             n_interface_cells,
+    //             1u,
+    //             1u,
+    //             interface_cell_ids_per_color[color]);
+
+    //         Kokkos::fence();
+    //       }
+    //   }
+
+    // DeviceVector<number> t_dst(dst.get_values(), dst.size());
+    // DeviceVector<number> t_src(src.get_values(), src.size());
+
+    // copy constrained values only for physical boundary dofs
     const auto boundary_dofs = this->physical_boundary_dof_indices;
 
     if (boundary_dofs.size() > 0)
       Kokkos::parallel_for(
         "work", boundary_dofs.size(), KOKKOS_LAMBDA(const int i) {
-          const auto idx = boundary_dofs(i);
-          t_dst(idx)     = t_src(idx);
+          const auto idx  = boundary_dofs(i);
+          dst_device(idx) = src_device(idx);
         });
   }
 
@@ -875,6 +991,7 @@ namespace Portable
                           numbers::invalid_unsigned_int;
                       else
                         dof_indices_host(i, cell_id) = global_dof;
+
                       if (physical_boundary_dofs.is_element(global_dof))
                         plain_dof_indices_host(i, cell_id) =
                           numbers::invalid_unsigned_int;
@@ -1091,6 +1208,72 @@ namespace Portable
     }
     exec_space.fence();
   }
+
+  template <int dim, int fe_degree, typename number>
+  void
+  SubdomainLaplaceOperator<dim, fe_degree, number>::compute_G_tensors()
+  {
+    AssertDimension(dim, 3);
+
+    constexpr int symmetric_tensor_dim = (dim * (dim + 1)) / 2;
+
+    const auto        &colored_graph = matrix_free.get_colored_graph();
+    const unsigned int n_colors      = colored_graph.size();
+
+    G_tensors.resize(n_colors);
+
+    for (unsigned int color = 0; color < n_colors; ++color)
+      {
+        if (colored_graph[color].size() > 0)
+          {
+            const auto        &precomputed_data = matrix_free.get_data(color);
+            const unsigned int n_cells          = precomputed_data.n_cells;
+
+            const auto &inv_jacobian = precomputed_data.inv_jacobian;
+            const auto &JxW          = precomputed_data.JxW;
+
+            G_tensors[color] =
+              Kokkos::View<number *, MemorySpace::Default::kokkos_space>(
+                Kokkos::view_alloc("G_tensor_color_" + std::to_string(color),
+                                   Kokkos::WithoutInitializing),
+                symmetric_tensor_dim * n_cells * n_q_points);
+
+            auto G = G_tensors[color];
+
+            Kokkos::parallel_for(
+              "Fill_G_tensor_color" + std::to_string(color),
+              Kokkos::RangePolicy<
+                dealii::MemorySpace::Default::kokkos_space::execution_space>(
+                0, n_cells),
+              KOKKOS_LAMBDA(const int cell_id) {
+                for (unsigned int q_point = 0; q_point < n_q_points; q_point++)
+                  {
+                    number components[symmetric_tensor_dim];
+
+                    int idx = 0;
+                    for (int d1 = 0; d1 < dim; ++d1)
+                      for (int d2 = d1; d2 < dim; ++d2)
+                        {
+                          number sum = 0;
+                          for (int k = 0; k < dim; ++k)
+                            sum += inv_jacobian(q_point, cell_id, k, d1) *
+                                   inv_jacobian(q_point, cell_id, k, d2);
+                          components[idx] = JxW(q_point, cell_id) * sum;
+                          ++idx;
+                        }
+
+                    for (int c = 0; c < symmetric_tensor_dim; ++c)
+                      {
+                        G[cell_id * symmetric_tensor_dim * n_q_points +
+                          c * n_q_points + q_point] = components[c];
+                      }
+                  }
+              });
+            Kokkos::fence();
+          }
+      }
+  }
+
 
 
   template <int dim, int fe_degree, typename number>

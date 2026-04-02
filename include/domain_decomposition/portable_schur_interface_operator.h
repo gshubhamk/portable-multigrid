@@ -87,6 +87,10 @@ namespace Portable
     const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &
     get_interface_weights() const;
 
+
+    const std::pair<unsigned int, unsigned int>
+    get_maximum_subdomain_mg_iterations() const;
+
     struct NeumannSubdomainOperator
     {
       NeumannSubdomainOperator(
@@ -153,6 +157,8 @@ namespace Portable
 
     DirichletSubdomainOperator subdomain_dirichlet_operator;
     NeumannSubdomainOperator   subdomain_neumann_operator;
+
+    mutable std::pair<unsigned int, unsigned int> max_subdomain_mg_iterations;
   };
 
   template <int dim, typename number>
@@ -179,6 +185,9 @@ namespace Portable
       this->temp_subdomain_vector_work);
 
     compute_interface_weights();
+
+    max_subdomain_mg_iterations.first  = 0;
+    max_subdomain_mg_iterations.second = 0;
   }
 
   template <int dim, typename number>
@@ -224,6 +233,15 @@ namespace Portable
   }
 
   template <int dim, typename number>
+  const std::pair<unsigned int, unsigned int>
+  SchurInterfaceOperator<dim, number>::get_maximum_subdomain_mg_iterations()
+    const
+  {
+    return max_subdomain_mg_iterations;
+  }
+
+
+  template <int dim, typename number>
   void
   SchurInterfaceOperator<dim, number>::dirichlet_solve_subdomain(
     LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
@@ -245,6 +263,10 @@ namespace Portable
     //           << this->subdomain_dof_handler->get_subdomain_id()
     //           << " converged in " << solver_control.last_step()
     //           << " iterations " << std::endl;
+
+    max_subdomain_mg_iterations.first =
+      std::max(max_subdomain_mg_iterations.first,
+               static_cast<unsigned int>(solver_control.last_step()));
   }
 
   /**
@@ -322,6 +344,11 @@ namespace Portable
     //           << this->subdomain_dof_handler->get_subdomain_id()
     //           << " converged in " << solver_control.last_step()
     //           << " iterations " << std::endl;
+
+
+    max_subdomain_mg_iterations.second =
+      std::max(max_subdomain_mg_iterations.second,
+               static_cast<unsigned int>(solver_control.last_step()));
 
     // apply weights and write dst interface values
     Kokkos::parallel_for(
@@ -415,6 +442,7 @@ namespace Portable
         number     output_value =
           t_subdomain_dst_view(idx) - t_subdomain_src_view(idx);
         Kokkos::atomic_add(&dst_view(i), output_value);
+        // dst_view(i) += output_value;
       });
 
     dst.compress(VectorOperation::add);
@@ -501,6 +529,7 @@ namespace Portable
             number     output_value =
               t_subdomain_dst_view(idx) - t_subdomain_src_view(idx);
             Kokkos::atomic_add(&dst_view(i), output_value);
+            // dst_view(i) += output_value;
           });
       }
 
@@ -554,6 +583,7 @@ namespace Portable
         number     output_value  = rhs_subdomain_view(idx_subdomain) -
                                    t_subdomain_dst_view(idx_subdomain);
         Kokkos::atomic_add(&rhs_schur_view(i), output_value);
+        // rhs_schur_view(i) += output_value;
       });
 
     rhs_schur.compress(VectorOperation::add);

@@ -119,6 +119,8 @@ private:
 
   FE_Q<dim> fe;
 
+  MGLevelObject<std::unique_ptr<FE_Q<dim>>> p_level_fes;
+
   IndexSet locally_owned_dofs;
   IndexSet locally_relevant_dofs;
 
@@ -195,6 +197,65 @@ private:
   ConvergenceTable ghost_timing_table;
 
   unsigned int n_cells_total;
+
+  struct SubdomainLaplaceOperatorRunner
+  {
+    const unsigned int              level;
+    SubdomainDoFHandler<dim>       &subomain_dof_handler;
+    AffineConstraints<double>      &constraints;
+    bool                            overlap_communication_computation;
+    LaplaceProblem<dim, fe_degree> &parent_problem;
+
+    template <unsigned int degree>
+    void
+    run()
+    {
+      parent_problem.level_subdomain_matrices[level] = std::make_unique<
+        Portable::SubdomainLaplaceOperator<dim, degree, double>>(
+        subomain_dof_handler, constraints, overlap_communication_computation);
+
+
+      parent_problem.level_subdomain_neumann_matrices[level] = std::make_unique<
+        typename Portable::
+          SubdomainNeumannOperatorWrapper<dim, degree, double>>(
+        *parent_problem.level_subdomain_matrices[level]);
+    }
+  };
+
+  struct PolynomialTransferRunner
+  {
+    const unsigned int                       level;
+    const Portable::MatrixFree<dim, double> &mf_coarse;
+    const Portable::MatrixFree<dim, double> &mf_fine;
+    AffineConstraints<double>               &constraints_coarse;
+    AffineConstraints<double>               &constraints_fine;
+    AffineConstraints<double>               &physical_constraints_coarse;
+    AffineConstraints<double>               &physical_constraints_fine;
+
+    LaplaceProblem<dim, fe_degree> &parent_problem;
+
+    template <unsigned int degree_coarse, unsigned int degree_fine>
+    void
+    run()
+    {
+      parent_problem.subdomain_mg_transfers_dirichlet[level] = std::make_unique<
+        Portable::
+          PolynomialTransfer<dim, degree_coarse, degree_fine, double>>();
+
+      parent_problem.subdomain_mg_transfers_dirichlet[level]->reinit(
+        mf_coarse, mf_fine, constraints_coarse, constraints_fine);
+
+      parent_problem.subdomain_mg_transfers_neumann[level] = std::make_unique<
+        Portable::
+          PolynomialTransfer<dim, degree_coarse, degree_fine, double>>();
+
+      parent_problem.subdomain_mg_transfers_neumann[level]->reinit(
+        mf_coarse,
+        mf_fine,
+        physical_constraints_coarse,
+        physical_constraints_fine);
+    }
+  };
 };
 template <int dim, int fe_degree>
 LaplaceProblem<dim, fe_degree>::LaplaceProblem(const unsigned int n_pre_smooth,
@@ -322,16 +383,30 @@ LaplaceProblem<dim, fe_degree>::setup_dofs()
 {
   Timer time;
 
-  level_dof_handlers.resize(0, level_subdomain_triangulations.size() - 1);
+  const unsigned int n_h_levels =
+    static_cast<unsigned int>(level_triangulations.size());
+
+  AssertDimension(n_h_levels, level_subdomain_triangulations.size());
+
+  std::vector<unsigned int> p_levels({fe.degree});
+
+  while (p_levels.back() > 1)
+    p_levels.push_back(std::max(p_levels.back() - 1, 1u));
+
+  p_level_fes.resize(0, p_levels.size() - 1);
+
+  for (unsigned int level = 0; level < p_levels.size(); ++level)
+    p_level_fes[level] =
+      std::make_unique<FE_Q<dim>>(p_levels[p_levels.size() - 1 - level]);
+
+  level_dof_handlers.resize(0, n_h_levels - 1 + p_level_fes.max_level());
   level_subdomain_dof_handlers.resize(0,
-                                      level_subdomain_triangulations.size() -
-                                        1);
+                                      n_h_levels - 1 + p_level_fes.max_level());
 
 
   level_subdomain_constraints.resize(0, level_dof_handlers.max_level());
   level_subdomain_constraints_physical.resize(0,
                                               level_dof_handlers.max_level());
-
 
   Functions::ZeroFunction<dim> homogeneous_dirichlet_bc;
   std::map<types::boundary_id, const Function<dim> *>
@@ -346,13 +421,19 @@ LaplaceProblem<dim, fe_degree>::setup_dofs()
   for (unsigned int level = 0; level <= level_dof_handlers.max_level(); ++level)
     {
       DoFHandler<dim> &dof_h = level_dof_handlers[level];
-      dof_h.reinit(*level_triangulations[level]);
-      dof_h.distribute_dofs(fe);
+      dof_h.reinit(*level_triangulations[std::min(level, n_h_levels - 1)]);
+
+      if (level < n_h_levels)
+
+        dof_h.distribute_dofs(*p_level_fes[0]);
+      else
+        dof_h.distribute_dofs(*p_level_fes[n_h_levels + 1 - level]);
 
       SubdomainDoFHandler<dim> &subdomain_dof_h =
         level_subdomain_dof_handlers[level];
 
-      subdomain_dof_h.reinit(level_subdomain_triangulations[level], dof_h);
+      subdomain_dof_h.reinit(
+        level_subdomain_triangulations[std::min(level, n_h_levels - 1)], dof_h);
       subdomain_dof_h.distribute_subdomain_dofs();
 
       {
@@ -435,6 +516,9 @@ template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::setup_matrix_free()
 {
+  const unsigned int n_h_levels =
+    static_cast<unsigned int>(level_triangulations.size());
+
   Kokkos::fence();
   Timer time;
 
@@ -444,15 +528,36 @@ LaplaceProblem<dim, fe_degree>::setup_matrix_free()
 
   for (unsigned int level = 0; level <= level_dof_handlers.max_level(); ++level)
     {
-      level_subdomain_matrices[level] = std::make_unique<
-        Portable::SubdomainLaplaceOperator<dim, fe_degree, double>>(
-        level_subdomain_dof_handlers[level],
-        level_subdomain_constraints[level]);
+      if (level < n_h_levels)
+        {
+          level_subdomain_matrices[level] = std::make_unique<
+            Portable::SubdomainLaplaceOperator<dim, 1, double>>(
+            level_subdomain_dof_handlers[level],
+            level_subdomain_constraints[level]);
 
-      level_subdomain_neumann_matrices[level] = std::make_unique<
-        typename Portable::
-          SubdomainNeumannOperatorWrapper<dim, fe_degree, double>>(
-        *level_subdomain_matrices[level]);
+
+          level_subdomain_neumann_matrices[level] = std::make_unique<
+            typename Portable::SubdomainNeumannOperatorWrapper<dim, 1, double>>(
+            *level_subdomain_matrices[level]);
+        }
+      else
+        {
+          SubdomainLaplaceOperatorRunner runner{
+            level,
+            level_subdomain_dof_handlers[level],
+            level_subdomain_constraints[level],
+            false,
+            *this};
+
+
+          bool success = Portable::SubdomainOperatorDispatchFactory::dispatch(
+            p_level_fes[level + 1 - n_h_levels]->degree, runner);
+
+          Assert(
+            success,
+            ExcMessage(
+              "Failed to find a matching polynomial degree in dispatcher."));
+        }
     }
 
   level_subdomain_matrices.back()->initialize_dof_vector(
@@ -473,6 +578,9 @@ LaplaceProblem<dim, fe_degree>::setup_mg_transfers()
   Kokkos::fence();
   Timer time;
 
+  const unsigned int n_h_levels =
+    static_cast<unsigned int>(level_triangulations.size());
+
   subdomain_mg_transfers_dirichlet.resize(level_subdomain_matrices.min_level(),
                                           level_subdomain_matrices.max_level());
 
@@ -483,21 +591,49 @@ LaplaceProblem<dim, fe_degree>::setup_mg_transfers()
        level <= level_subdomain_matrices.max_level();
        ++level)
     {
-      subdomain_mg_transfers_dirichlet[level] =
-        std::make_unique<Portable::GeometricTransfer<dim, fe_degree, double>>();
-      subdomain_mg_transfers_dirichlet[level]->reinit(
-        level_subdomain_matrices[level - 1]->get_matrix_free(),
-        level_subdomain_matrices[level]->get_matrix_free(),
-        level_subdomain_constraints[level - 1],
-        level_subdomain_constraints[level]);
+      if (level < n_h_levels)
+        {
+          subdomain_mg_transfers_dirichlet[level] =
+            std::make_unique<Portable::GeometricTransfer<dim, 1, double>>();
+          subdomain_mg_transfers_dirichlet[level]->reinit(
+            level_subdomain_matrices[level - 1]->get_matrix_free(),
+            level_subdomain_matrices[level]->get_matrix_free(),
+            level_subdomain_constraints[level - 1],
+            level_subdomain_constraints[level]);
 
-      subdomain_mg_transfers_neumann[level] =
-        std::make_unique<Portable::GeometricTransfer<dim, fe_degree, double>>();
-      subdomain_mg_transfers_neumann[level]->reinit(
-        level_subdomain_matrices[level - 1]->get_matrix_free(),
-        level_subdomain_matrices[level]->get_matrix_free(),
-        level_subdomain_constraints_physical[level - 1],
-        level_subdomain_constraints_physical[level]);
+          subdomain_mg_transfers_neumann[level] =
+            std::make_unique<Portable::GeometricTransfer<dim, 1, double>>();
+          subdomain_mg_transfers_neumann[level]->reinit(
+            level_subdomain_matrices[level - 1]->get_matrix_free(),
+            level_subdomain_matrices[level]->get_matrix_free(),
+            level_subdomain_constraints_physical[level - 1],
+            level_subdomain_constraints_physical[level]);
+        }
+      else
+        {
+          const unsigned int p_coarse = p_level_fes[level - n_h_levels]->degree;
+          const unsigned int p_fine =
+            p_level_fes[level + 1 - n_h_levels]->degree;
+
+          PolynomialTransferRunner runner{
+            level,
+            level_subdomain_matrices[level - 1]->get_matrix_free(),
+            level_subdomain_matrices[level]->get_matrix_free(),
+            level_subdomain_constraints[level - 1],
+            level_subdomain_constraints[level],
+            level_subdomain_constraints_physical[level - 1],
+            level_subdomain_constraints_physical[level],
+            *this};
+
+          bool success =
+            Portable::PolynomialTransferDispatchFactory::dispatch(p_coarse,
+                                                                  p_fine,
+                                                                  runner);
+
+          Assert(success,
+                 ExcMessage("Failed to find a matching polynomial degree "
+                            "pair in transfer dispatcher."));
+        }
     }
 
   Kokkos::fence();
@@ -767,6 +903,9 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
         << solver_control.last_step() << " iterations.    (CPU/wall) "
         << time.cpu_time() << "s/" << time.wall_time() << 's' << std::endl;
 
+  const auto max_mg_iterations =
+    interface_operator->get_maximum_subdomain_mg_iterations();
+
   const auto iterations = std::max(solver_control.last_step(), 1u);
 
   const std::array<double, 4> timings = bnn_preconditioner->get_timings();
@@ -784,6 +923,9 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   timing_table.add_value("Coarse/iter", timings[2] / iterations);
   timing_table.add_value("Project/iter", timings[3] / iterations);
   timing_table.add_value("CG time/iter", time_solve / iterations);
+  timing_table.add_value("Max-dir-mg-its", max_mg_iterations.first);
+  timing_table.add_value("Max-neu-mg-its", max_mg_iterations.second);
+
 }
 
 
@@ -835,9 +977,9 @@ LaplaceProblem<dim, fe_degree>::matvec_ghost_timing()
         time.restart();
         for (unsigned int i = 0; i < n_mv; ++i)
           bnn_preconditioner->balance_dummy(dummy_solution,
-                                      dummy_rhs,
-                                      computation_on,
-                                      communication_on);
+                                            dummy_rhs,
+                                            computation_on,
+                                            communication_on);
         Kokkos::fence();
 
         Utilities::MPI::MinMaxAvg stat =
@@ -866,9 +1008,9 @@ LaplaceProblem<dim, fe_degree>::matvec_ghost_timing()
         time.restart();
         for (unsigned int i = 0; i < n_mv; ++i)
           bnn_preconditioner->balance_dummy(dummy_solution,
-                                      dummy_rhs,
-                                      !computation_on,
-                                      communication_on);
+                                            dummy_rhs,
+                                            !computation_on,
+                                            communication_on);
         Kokkos::fence();
 
         Utilities::MPI::MinMaxAvg stat =
@@ -898,9 +1040,9 @@ LaplaceProblem<dim, fe_degree>::matvec_ghost_timing()
         time.restart();
         for (unsigned int i = 0; i < n_mv; ++i)
           bnn_preconditioner->balance_dummy(dummy_solution,
-                                      dummy_rhs,
-                                      computation_on,
-                                      !communication_on);
+                                            dummy_rhs,
+                                            computation_on,
+                                            !communication_on);
         Kokkos::fence();
 
         Utilities::MPI::MinMaxAvg stat =
@@ -1123,9 +1265,9 @@ LaplaceProblem<dim, fe_degree>::run()
 
       // test_coarse_problem();
 
-      // postprocess_subdomain_solution();
+      postprocess_subdomain_solution();
 
-      // output_results(cycle);
+      output_results(cycle);
 
       // test_triangulation();
 
