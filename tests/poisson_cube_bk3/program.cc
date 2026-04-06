@@ -35,9 +35,8 @@
 #include "multigrid/portable_geometric_transfer.h"
 #include "multigrid/portable_polynomial_tranfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
-#include "operators/portable_laplace_operator_bk3.h"
 #include "operators/portable_laplace_operator.h"
-
+#include "operators/portable_laplace_operator_bk3.h"
 #include "portable_multigrid_solver.h"
 
 namespace multigrid
@@ -997,45 +996,45 @@ namespace multigrid
 
         compute_rhs();
 
-        // pcout << "Total setup time: " << setup_time << std::endl;
+        pcout << "Total setup time: " << setup_time << std::endl;
 
-        // solve(n_pre_smooth, n_post_smooth);
-        // pcout << std::endl;
+        solve(n_pre_smooth, n_post_smooth);
+        pcout << std::endl;
 
-        // pcout << std::endl;
-        // pcout << std::endl;
-        // matvec_ghost_timing();
-        // pcout << std::endl;
-        // pcout << std::endl;
+        pcout << std::endl;
+        pcout << std::endl;
+        matvec_ghost_timing();
+        pcout << std::endl;
+        pcout << std::endl;
 
 
         // if (cycle >= 10)
-        //   if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-        //     {
-        //       convergence_table.set_scientific("mv_outer", true);
-        //       convergence_table.set_precision("mv_outer", 3);
-        //       convergence_table.set_scientific("mv_inner", true);
-        //       convergence_table.set_precision("mv_inner", 3);
-        //       convergence_table.set_scientific("cg_reduction", true);
-        //       convergence_table.set_precision("cg_reduction", 3);
-        //       convergence_table.set_scientific("cg_time", true);
-        //       convergence_table.set_precision("cg_time", 3);
+        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+          {
+            convergence_table.set_scientific("mv_outer", true);
+            convergence_table.set_precision("mv_outer", 3);
+            convergence_table.set_scientific("mv_inner", true);
+            convergence_table.set_precision("mv_inner", 3);
+            convergence_table.set_scientific("cg_reduction", true);
+            convergence_table.set_precision("cg_reduction", 3);
+            convergence_table.set_scientific("cg_time", true);
+            convergence_table.set_precision("cg_time", 3);
 
-        //       convergence_table.write_text(std::cout);
+            convergence_table.write_text(std::cout);
 
-        //       std::cout << std::endl << std::endl;
+            std::cout << std::endl << std::endl;
 
-        //       ghost_timing_table.set_scientific("mv_ghost_and_compute",
-        //       true); ghost_timing_table.set_precision("mv_ghost_and_compute",
-        //       4); ghost_timing_table.set_scientific("mv_compute_only", true);
-        //       ghost_timing_table.set_precision("mv_compute_only", 4);
-        //       ghost_timing_table.set_scientific("mv_ghost_only", true);
-        //       ghost_timing_table.set_precision("mv_ghost_only", 4);
+            ghost_timing_table.set_scientific("mv_ghost_and_compute", true);
+            ghost_timing_table.set_precision("mv_ghost_and_compute", 4);
+            ghost_timing_table.set_scientific("mv_compute_only", true);
+            ghost_timing_table.set_precision("mv_compute_only", 4);
+            ghost_timing_table.set_scientific("mv_ghost_only", true);
+            ghost_timing_table.set_precision("mv_ghost_only", 4);
 
-        //       ghost_timing_table.write_text(std::cout);
+            ghost_timing_table.write_text(std::cout);
 
-        //       std::cout << std::endl << std::endl;
-        //     }
+            std::cout << std::endl << std::endl;
+          }
       }
   }
   template <int dim, int min_degree, int max_degree>
