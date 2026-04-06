@@ -319,7 +319,7 @@ namespace Portable
       });
 
     SolverControl solver_control(temp_subdomain_vector_src.size(),
-                                 1e-12 * temp_subdomain_vector_src.l2_norm());
+                                 1e-12 * src.l2_norm());
 
 
     if (physical_boundary_dof_indices_subdomain.size() == 0)

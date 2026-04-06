@@ -292,41 +292,43 @@ namespace Portable
 
             Kokkos::fence();
 
+
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
                            Kokkos::DefaultHostExecutionSpace>::value;
+
+            unsigned int numBlocks       = numbers::invalid_unsigned_int;
+            unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
             if (is_serial)
               {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  interior_dof_indices_per_color[color],
-                  n_cells,
-                  1u,
-                  1u);
+                numBlocks       = 1u;
+                threadsPerBlock = 1u;
               }
-            else
-              {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  interior_dof_indices_per_color[color],
-                  n_cells,
-                  numbers::invalid_unsigned_int,
-                  numbers::invalid_unsigned_int);
-              }
+
+            // BK3::Parallel::
+            //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+            //   number>(
+            //     precomputed_data.shape_values,
+            //     precomputed_data.co_shape_gradients,
+            //     G_tensors[color],
+            //     src_device,
+            //     dst_device,
+            //     interior_dof_indices_per_color[color],
+            //     n_cells,
+            //     numBlocks,
+            //     threadsPerBlock);
+
+            BK3::Parallel::
+              KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+                precomputed_data.shape_values,
+                precomputed_data.co_shape_gradients,
+                G_tensors[color],
+                src_device,
+                dst_device,
+                interior_dof_indices_per_color[color],
+                n_cells,
+                numBlocks,
+                threadsPerBlock);
 
             Kokkos::fence();
           }
@@ -372,32 +374,34 @@ namespace Portable
 
             Kokkos::fence();
 
-
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
                            Kokkos::DefaultHostExecutionSpace>::value;
 
+            unsigned int numBlocks       = numbers::invalid_unsigned_int;
+            unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
+
             if (is_serial)
               {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  interior_dof_indices_per_color[color],
-                  n_cells,
-                  1u,
-                  1u);
+                numBlocks       = 1u;
+                threadsPerBlock = 1u;
               }
-            else
-              BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                   fe_degree + 1,
-                                                   fe_degree + 1,
-                                                   number>(
+
+            // BK3::Parallel::
+            //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+            //   number>(
+            //     precomputed_data.shape_values,
+            //     precomputed_data.co_shape_gradients,
+            //     G_tensors[color],
+            //     src_device,
+            //     dst_device,
+            //     interior_dof_indices_per_color[color],
+            //     n_cells,
+            //     numBlocks,
+            //     threadsPerBlock);
+
+            BK3::Parallel::
+              KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
                 precomputed_data.shape_values,
                 precomputed_data.co_shape_gradients,
                 G_tensors[color],
@@ -405,8 +409,8 @@ namespace Portable
                 dst_device,
                 interior_dof_indices_per_color[color],
                 n_cells,
-                numbers::invalid_unsigned_int,
-                numbers::invalid_unsigned_int);
+                numBlocks,
+                threadsPerBlock);
 
             Kokkos::fence();
           }
@@ -451,38 +455,39 @@ namespace Portable
               std::is_same<Kokkos::DefaultExecutionSpace,
                            Kokkos::DefaultHostExecutionSpace>::value;
 
+            unsigned int numBlocks       = numbers::invalid_unsigned_int;
+            unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
+
             if (is_serial)
               {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  plain_dof_indices_per_color[color],
-                  n_cells,
-                  1u,
-                  1u);
+                numBlocks       = 1u;
+                threadsPerBlock = 1u;
               }
-            else
-              {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  plain_dof_indices_per_color[color],
-                  n_cells,
-                  numbers::invalid_unsigned_int,
-                  numbers::invalid_unsigned_int);
-              }
+
+            // BK3::Parallel::
+            //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+            //   number>(
+            //     precomputed_data.shape_values,
+            //     precomputed_data.co_shape_gradients,
+            //     G_tensors[color],
+            //     src_device,
+            //     dst_device,
+            //     plain_dof_indices_per_color[color],
+            //     n_cells,
+            //     numBlocks,
+            //     threadsPerBlock);
+
+            BK3::Parallel::
+              KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+                precomputed_data.shape_values,
+                precomputed_data.co_shape_gradients,
+                G_tensors[color],
+                src_device,
+                dst_device,
+                plain_dof_indices_per_color[color],
+                n_cells,
+                numBlocks,
+                threadsPerBlock);
 
             Kokkos::fence();
           }
@@ -532,40 +537,41 @@ namespace Portable
               std::is_same<Kokkos::DefaultExecutionSpace,
                            Kokkos::DefaultHostExecutionSpace>::value;
 
+            unsigned int numBlocks       = numbers::invalid_unsigned_int;
+            unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
+
             if (is_serial)
               {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  plain_dof_indices_per_color[color],
-                  n_interface_cells,
-                  1u,
-                  1u,
-                  interface_cell_ids_per_color[color]);
+                numBlocks       = 1u;
+                threadsPerBlock = 1u;
               }
-            else
-              {
-                BK3::Parallel::KokkosKernel_1D_Block<dim,
-                                                     fe_degree + 1,
-                                                     fe_degree + 1,
-                                                     number>(
-                  precomputed_data.shape_values,
-                  precomputed_data.co_shape_gradients,
-                  G_tensors[color],
-                  src_device,
-                  dst_device,
-                  plain_dof_indices_per_color[color],
-                  n_interface_cells,
-                  numbers::invalid_unsigned_int,
-                  numbers::invalid_unsigned_int,
-                  interface_cell_ids_per_color[color]);
-              }
+
+            // BK3::Parallel::
+            //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
+            //   number>(
+            //     precomputed_data.shape_values,
+            //     precomputed_data.co_shape_gradients,
+            //     G_tensors[color],
+            //     src_device,
+            //     dst_device,
+            //     plain_dof_indices_per_color[color],
+            //     n_interface_cells,
+            //     numBlocks,
+            //     threadsPerBlock,
+            //     interface_cell_ids_per_color[color]);
+
+            BK3::Parallel::
+              KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+                precomputed_data.shape_values,
+                precomputed_data.co_shape_gradients,
+                G_tensors[color],
+                src_device,
+                dst_device,
+                plain_dof_indices_per_color[color],
+                n_interface_cells,
+                numBlocks,
+                threadsPerBlock,
+                interface_cell_ids_per_color[color]);
 
             Kokkos::fence();
           }
