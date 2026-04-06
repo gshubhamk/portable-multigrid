@@ -59,9 +59,9 @@ namespace BK3
       if (threadsPerBlock == numbers::invalid_unsigned_int)
         threadsPerBlock = nq * nq * std::max(1u, nelmtPerBatch);
 
-      std::cout << "Launching kernel with numBlocks = " << numBlocks
-                << ", threadsPerBlock = " << threadsPerBlock
-                << ", nelmtPerBatch = " << nelmtPerBatch << std::endl;
+      // std::cout << "Launching kernel with numBlocks = " << numBlocks
+      //           << ", threadsPerBlock = " << threadsPerBlock
+      //           << ", nelmtPerBatch = " << nelmtPerBatch << std::endl;
 
 
       {
@@ -132,8 +132,8 @@ namespace BK3
                     (n_cells - eb * nelmtPerBatch) :
                     nelmtPerBatch;
 
-                std::cout << "Processing batch " << eb << " with "
-                          << c_nelmtPerBatch << " cells\n";
+                // std::cout << "Processing batch " << eb << " with "
+                //           << c_nelmtPerBatch << " cells\n";
                 {
                   // step-1 : Copy from in to the scratch values
                   for (unsigned int tid = threadIdx;
@@ -174,18 +174,21 @@ namespace BK3
                           else
                             s_wsp0[shared_idx] = d_in[dof_index];
 
-                          std::cout
-                            << "[ " << dof_index << ", " << s_wsp0[shared_idx]
-                            << " ]"
-                            << " "; // print the value read from global memory
+                          // std::cout
+                          //   << "[ " << dof_index << ", " <<
+                          //   s_wsp0[shared_idx]
+                          //   << " ]"
+                          //   << " "; // print the value read from global
+                          //   memory
                         }
                     }
                 }
                 team_member.team_barrier();
-                std::cout << std::endl;
+                // std::cout << std::endl;
 
-                std::cout << "Finished dof read " << eb << " to shared memory"
-                          << std::endl;
+                // std::cout << "Finished dof read " << eb << " to shared
+                // memory"
+                //           << std::endl;
 
 
                 // step-2 : direction 0
@@ -274,7 +277,7 @@ namespace BK3
                   }
                 team_member.team_barrier();
 
-                std::cout << "After apply shape values " << std::endl;
+                // std::cout << "After apply shape values " << std::endl;
 
 
                 for (unsigned int tid = threadIdx;
@@ -335,21 +338,23 @@ namespace BK3
 
                         // Apply chain rule
                         s_rqr[e * nq * nq * nq + p * nq * nq + q * nq + r] =
-                          Grr * qr + Grs * qs + Grt * qt;
+                          Grr * qt + Grs * qs + Grt * qr;
                         s_rqs[e * nq * nq * nq + p * nq * nq + q * nq + r] =
-                          Grs * qr + Gss * qs + Gst * qt;
+                          Grs * qt + Gss * qs + Gst * qr;
                         s_rqt[e * nq * nq * nq + p * nq * nq + q * nq + r] =
-                          Grt * qr + Gst * qs + Gtt * qt;
+                          Grt * qt + Gst * qs + Gtt * qr;
                       }
-                    std::cout << "Thread " << team_member.team_rank()
-                              << " processing element " << e << ", q " << q
-                              << ", r " << r << std::endl;
+
+                    // std::cout << "Thread " << team_member.team_rank()
+                    //           << " processing element " << e << ", q " << q
+                    //           << ", r " << r << std::endl;
                   }
                 team_member.team_barrier();
 
-                std::cout
-                  << "After apply shape gradients and geometric factors " << eb
-                  << std::endl;
+                // std::cout
+                //   << "After apply shape gradients and geometric factors " <<
+                //   eb
+                //   << std::endl;
 
 
                 for (unsigned int tid = threadIdx;
@@ -364,7 +369,7 @@ namespace BK3
                     for (unsigned int n = 0; n < nq; n++)
                       {
                         r_p[n] =
-                          s_rqr[e * nq * nq * nq + n * nq * nq + q * nq + r];
+                          s_rqt[e * nq * nq * nq + n * nq * nq + q * nq + r];
                         r_q[n] = s_co_shape_gradients[q * nq + n];
                         r_r[n] = s_co_shape_gradients[r * nq + n];
                       }
@@ -382,7 +387,7 @@ namespace BK3
 
                         for (unsigned int n = 0; n < nq; ++n)
                           tmp0 +=
-                            s_rqt[e * nq * nq * nq + p * nq * nq + q * nq + n] *
+                            s_rqr[e * nq * nq * nq + p * nq * nq + q * nq + n] *
                             r_r[n];
 
                         s_wsp1[e * nq * nq * nq + r * nq * nq + q * nq + p] =
@@ -391,7 +396,7 @@ namespace BK3
                   }
                 team_member.team_barrier();
 
-                std::cout << "After apply shape gradients " << std::endl;
+                // std::cout << "After apply shape gradients " << std::endl;
 
 
                 /*
@@ -484,7 +489,7 @@ namespace BK3
                   }
                 team_member.team_barrier();
 
-                std::cout << "After apply shape values again " << std::endl;
+                // std::cout << "After apply shape values again " << std::endl;
 
                 // step-12 : Copy wsp0 (result) back to global out vector
                 for (unsigned int tid = threadIdx;
@@ -524,8 +529,9 @@ namespace BK3
                 team_member.team_barrier();
 
 
-                std::cout << "Finished dof print " << eb << " to shared memory"
-                          << std::endl;
+                // std::cout << "Finished dof print " << eb << " to shared
+                // memory"
+                //           << std::endl;
                 eb += team_member.league_size();
               }
           });
@@ -798,11 +804,11 @@ namespace BK3
 
                     // step-7 : Apply chain rule
                     rqr[p * n_q_points_1d * n_q_points_1d + q * n_q_points_1d +
-                        r] = Grr * qr + Grs * qs + Grt * qt;
+                        r] = Grr * qt + Grs * qs + Grt * qr;
                     rqs[p * n_q_points_1d * n_q_points_1d + q * n_q_points_1d +
-                        r] = Grs * qr + Gss * qs + Gst * qt;
+                        r] = Grs * qt + Gss * qs + Gst * qr;
                     rqt[p * n_q_points_1d * n_q_points_1d + q * n_q_points_1d +
-                        r] = Grt * qr + Gst * qs + Gtt * qt;
+                        r] = Grt * qt + Gst * qs + Gtt * qr;
                   }
                 team_member.team_barrier();
 
@@ -818,7 +824,7 @@ namespace BK3
 
                     number sum = 0;
                     for (unsigned int n = 0; n < n_q_points_1d; ++n)
-                      sum += rqr[n * n_q_points_1d * n_q_points_1d +
+                      sum += rqt[n * n_q_points_1d * n_q_points_1d +
                                  q * n_q_points_1d + r] *
                              co_shape_gradients_scratch[p * n_q_points_1d + n];
 
@@ -828,7 +834,7 @@ namespace BK3
                              co_shape_gradients_scratch[q * n_q_points_1d + n];
 
                     for (unsigned int n = 0; n < n_q_points_1d; ++n)
-                      sum += rqt[p * n_q_points_1d * n_q_points_1d +
+                      sum += rqr[p * n_q_points_1d * n_q_points_1d +
                                  q * n_q_points_1d + n] *
                              co_shape_gradients_scratch[r * n_q_points_1d + n];
 

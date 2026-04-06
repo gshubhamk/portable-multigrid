@@ -30,7 +30,9 @@
 #include <fstream>
 #include <iostream>
 
+#include "operators/portable_laplace_operator.h"
 #include "operators/portable_laplace_operator_bk3.h"
+
 using namespace dealii;
 
 template <int dim, int fe_degree>
@@ -41,6 +43,9 @@ public:
 
   void
   run();
+
+  void
+  test();
 
 private:
   void
@@ -76,6 +81,10 @@ private:
 
   std::unique_ptr<Portable::LaplaceOperatorBK3<dim, fe_degree, double>>
     system_matrix;
+
+  std::unique_ptr<Portable::LaplaceOperator<dim, fe_degree, double>>
+    system_matrix_dealii;
+
   LinearAlgebra::distributed::Vector<double, MemorySpace::Host>
     ghost_solution_host;
   LinearAlgebra::distributed::Vector<double, MemorySpace::Default>
@@ -142,6 +151,10 @@ LaplaceProblem<dim, fe_degree>::setup_matrix_free()
 {
   system_matrix.reset(new Portable::LaplaceOperatorBK3<dim, fe_degree, double>(
     dof_handler, constraints, overlap_communication_computation));
+
+  system_matrix_dealii.reset(
+    new Portable::LaplaceOperator<dim, fe_degree, double>(
+      dof_handler, constraints, overlap_communication_computation));
 
   system_matrix->initialize_dof_vector(solution_device);
   system_rhs_device.reinit(solution_device);
@@ -271,21 +284,53 @@ LaplaceProblem<dim, fe_degree>::output_results(const unsigned int cycle) const
   pcout << "  solution norm: " << global_norm << std::endl;
 }
 
+
+
+template <int dim, int fe_degree>
+void
+LaplaceProblem<dim, fe_degree>::test()
+{
+  LinearAlgebra::distributed::Vector<double, MemorySpace::Default> src, temp,
+    temp_dealii, err;
+
+  system_matrix->initialize_dof_vector(src);
+  temp.reinit(src);
+  temp_dealii.reinit(src);
+
+  src = 1.;
+
+  system_matrix->vmult(temp, src);
+  system_matrix_dealii->vmult(temp_dealii, src);
+
+  err = temp;
+  err -= temp_dealii;
+
+  pcout << "temp_bk3.l2_norm()    = " << temp.l2_norm() << std::endl;
+  pcout << "temp_dealii.l2_norm() = " << temp_dealii.l2_norm() << std::endl;
+  pcout << "err.l2_norm()         = " << err.l2_norm() << std::endl;
+}
+
 template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::run()
 {
   pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 12 - dim; ++cycle)
+  for (unsigned int cycle = 0; cycle < 9 - dim; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
 
       if (cycle == 0)
         {
-          GridGenerator::hyper_cube(triangulation, 0., 1.);
-          triangulation.refine_global(2);
+          if (dim == 2)
+            GridGenerator::hyper_cube(triangulation, 0., 1.);
+          else
+            GridGenerator::hyper_rectangle(triangulation,
+                                           Point<3>(),
+                                           Point<3>(0.5, 1., 1.));
+
+          triangulation.refine_global(3 - dim);
         }
       else
         {
@@ -295,11 +340,13 @@ LaplaceProblem<dim, fe_degree>::run()
 
       setup_dofs();
       setup_matrix_free();
-      setup_smoothers();
+      // setup_smoothers();
       assemble_rhs();
 
-      solve();
-      output_results(cycle);
+      // solve();
+      // output_results(cycle);
+
+      test();
 
       pcout << std::endl;
     }
