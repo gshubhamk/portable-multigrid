@@ -294,8 +294,7 @@ namespace Portable
 
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
-                           Kokkos::Serial>::value;
-
+                           Kokkos::DefaultHostExecutionSpace>::value;
             if (is_serial)
               {
                 BK3::Parallel::KokkosKernel_1D_Block<dim,
@@ -376,8 +375,7 @@ namespace Portable
 
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
-                           Kokkos::Serial>::value;
-
+                           Kokkos::DefaultHostExecutionSpace>::value;
 
             if (is_serial)
               {
@@ -451,7 +449,7 @@ namespace Portable
 
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
-                           Kokkos::Serial>::value;
+                           Kokkos::DefaultHostExecutionSpace>::value;
 
             if (is_serial)
               {
@@ -532,7 +530,7 @@ namespace Portable
 
             constexpr bool is_serial =
               std::is_same<Kokkos::DefaultExecutionSpace,
-                           Kokkos::Serial>::value;
+                           Kokkos::DefaultHostExecutionSpace>::value;
 
             if (is_serial)
               {
