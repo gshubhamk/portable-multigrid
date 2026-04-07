@@ -65,6 +65,9 @@ private:
   void
   output_results(const unsigned int cycle) const;
 
+  void
+  test_prolongation();
+
   MPI_Comm mpi_communicator;
 
   parallel::distributed::Triangulation<dim> triangulation;
@@ -439,9 +442,39 @@ LaplaceProblem<dim, fe_degree, mg_levels>::output_results(
 
 template <int dim, int fe_degree, int mg_levels>
 void
+LaplaceProblem<dim, fe_degree, mg_levels>::test_prolongation()
+{
+  for (unsigned int level = 1; level <= mg_matrices.max_level(); ++level)
+    {
+      LinearAlgebra::distributed::Vector<double, MemorySpace::Default>
+        src_coarse, dst_fine;
+
+      const unsigned int level_coarse = level - 1;
+      const unsigned int level_fine   = level;
+
+      mg_matrices[level_coarse]->initialize_dof_vector(src_coarse);
+      // src_coarse = 1.;
+
+      Portable::DeviceVector<double> src_device(src_coarse.get_values(),
+                                                src_coarse.locally_owned_size());
+
+      Kokkos::parallel_for(
+        "set_values", src_coarse.locally_owned_size(), KOKKOS_LAMBDA(const unsigned int i) {
+          src_device(i) = i + 1;
+        });
+
+      mg_matrices[level_fine]->initialize_dof_vector(dst_fine);
+
+      mg_transfers[level_fine]->prolongate_and_add(dst_fine, src_coarse);
+    }
+}
+
+template <int dim, int fe_degree, int mg_levels>
+void
 LaplaceProblem<dim, fe_degree, mg_levels>::run()
 {
   for (unsigned int cycle = 0; cycle < 9 - dim; ++cycle)
+  // for (unsigned int cycle = 0; cycle < 1; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -450,6 +483,7 @@ LaplaceProblem<dim, fe_degree, mg_levels>::run()
         {
           GridGenerator::hyper_cube(triangulation, 0., 1.);
           triangulation.refine_global(3 - dim);
+          // triangulation.refine_global(1);
         }
       else
         {
@@ -460,9 +494,11 @@ LaplaceProblem<dim, fe_degree, mg_levels>::run()
       setup_mg_transfers();
       setup_smoothers();
       assemble_rhs();
-      solve();
-      post_process_solution();
-      output_results(cycle);
+      // solve();
+      // post_process_solution();
+      // output_results(cycle);
+
+      test_prolongation();
 
       pcout << std::endl;
     }
