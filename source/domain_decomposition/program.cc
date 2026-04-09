@@ -909,6 +909,12 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   const auto max_mg_iterations =
     interface_operator->get_maximum_subdomain_mg_iterations();
 
+  const auto max_mg_iterations_dir  =
+    Utilities::MPI::max(max_mg_iterations.first, mpi_communicator);
+
+  const auto  max_mg_iterations_neu =
+    Utilities::MPI::max(max_mg_iterations.second, mpi_communicator);
+
   const auto iterations = std::max(solver_control.last_step(), 1u);
 
   const std::array<double, 4> timings = bnn_preconditioner->get_timings();
@@ -927,8 +933,8 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   timing_table_per_iteration.add_value("Crs_per_iter", timings[2] / iterations);
   timing_table_per_iteration.add_value("Prj_per_iter", timings[3] / iterations);
   timing_table_per_iteration.add_value("CG_per_iter", time_solve / iterations);
-  timing_table_per_iteration.add_value("dir_mg_its", max_mg_iterations.first);
-  timing_table_per_iteration.add_value("neu_mg_its", max_mg_iterations.second);
+  timing_table_per_iteration.add_value("dir_mg_its", max_mg_iterations_dir);
+  timing_table_per_iteration.add_value("neu_mg_its", max_mg_iterations_neu);
 }
 
 
