@@ -172,20 +172,6 @@ namespace Portable
                 threadsPerBlock = 1u;
               }
 
-            Kokkos::fence();
-
-            constexpr bool is_serial =
-              std::is_same<Kokkos::DefaultExecutionSpace,
-                           Kokkos::DefaultHostExecutionSpace>::value;
-
-            unsigned int numBlocks       = numbers::invalid_unsigned_int;
-            unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
-            if (is_serial)
-              {
-                numBlocks       = 1u;
-                threadsPerBlock = 1u;
-              }
-
             // BK3::Parallel::
             //   KokkosKernel_1D_Block<dim, fe_degree + 1, fe_degree + 1,
             //   number>(
@@ -265,17 +251,6 @@ namespace Portable
 
                 Kokkos::fence();
 
-                constexpr bool is_serial =
-                  std::is_same<Kokkos::DefaultExecutionSpace,
-                               Kokkos::DefaultHostExecutionSpace>::value;
-
-                unsigned int numBlocks       = numbers::invalid_unsigned_int;
-                unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
-                if (is_serial)
-                  {
-                    numBlocks       = 1u;
-                    threadsPerBlock = 1u;
-                  }
 
                 // BK3::Parallel::KokkosKernel_1D_Block<dim,
                 //                                      fe_degree + 1,
