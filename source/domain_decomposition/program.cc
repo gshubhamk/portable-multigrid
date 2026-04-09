@@ -194,6 +194,8 @@ private:
 
   ConvergenceTable timing_table;
 
+  ConvergenceTable timing_table_per_iteration;
+
   ConvergenceTable ghost_timing_table;
 
   unsigned int n_cells_total;
@@ -917,15 +919,16 @@ LaplaceProblem<dim, fe_degree>::solve_interface()
   timing_table.add_value("Neumann", timings[1]);
   timing_table.add_value("Coarse", timings[2]);
   timing_table.add_value("Project", timings[3]);
-  timing_table.add_value("CG time", time_solve);
-  timing_table.add_value("Iterations", solver_control.last_step());
-  timing_table.add_value("Dirichlet/iter", timings[0] / iterations);
-  timing_table.add_value("Neumann/iter", timings[1] / iterations);
-  timing_table.add_value("Coarse/iter", timings[2] / iterations);
-  timing_table.add_value("Project/iter", timings[3] / iterations);
-  timing_table.add_value("CG time/iter", time_solve / iterations);
-  timing_table.add_value("Max-dir-mg-its", max_mg_iterations.first);
-  timing_table.add_value("Max-neu-mg-its", max_mg_iterations.second);
+  timing_table.add_value("CG_time", time_solve);
+  timing_table.add_value("Iters", solver_control.last_step());
+
+  timing_table_per_iteration.add_value("Dir_per_iter", timings[0] / iterations);
+  timing_table_per_iteration.add_value("Neu_per_iter", timings[1] / iterations);
+  timing_table_per_iteration.add_value("Crs_per_iter", timings[2] / iterations);
+  timing_table_per_iteration.add_value("Prj_per_iter", timings[3] / iterations);
+  timing_table_per_iteration.add_value("CG_per_iter", time_solve / iterations);
+  timing_table_per_iteration.add_value("dir_mg_its", max_mg_iterations.first);
+  timing_table_per_iteration.add_value("neu_mg_its", max_mg_iterations.second);
 }
 
 
@@ -1344,6 +1347,8 @@ LaplaceProblem<dim, fe_degree>::run()
 
       if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         {
+          std::cout << std::endl << std::endl;
+
           timing_table.set_scientific("Dirichlet", true);
           timing_table.set_precision("Dirichlet", 3);
           timing_table.set_scientific("Neumann", true);
@@ -1352,20 +1357,25 @@ LaplaceProblem<dim, fe_degree>::run()
           timing_table.set_precision("Coarse", 3);
           timing_table.set_scientific("Project", true);
           timing_table.set_precision("Project", 3);
-          timing_table.set_scientific("CG time", true);
-          timing_table.set_precision("CG time", 3);
-          timing_table.set_scientific("Dirichlet/iter", true);
-          timing_table.set_precision("Dirichlet/iter", 3);
-          timing_table.set_scientific("Neumann/iter", true);
-          timing_table.set_precision("Neumann/iter", 3);
-          timing_table.set_scientific("Coarse/iter", true);
-          timing_table.set_precision("Coarse/iter", 3);
-          timing_table.set_scientific("Project/iter", true);
-          timing_table.set_precision("Project/iter", 3);
-          timing_table.set_scientific("CG time/iter", true);
-          timing_table.set_precision("CG time/iter", 3);
+          timing_table.set_scientific("CG_time", true);
+          timing_table.set_precision("CG_time", 3);
+
+          timing_table_per_iteration.set_scientific("Dir_per_iter", true);
+          timing_table_per_iteration.set_precision("Dir_per_iter", 3);
+          timing_table_per_iteration.set_scientific("Neu_per_iter", true);
+          timing_table_per_iteration.set_precision("Neu_per_iter", 3);
+          timing_table_per_iteration.set_scientific("Crs_per_iter", true);
+          timing_table_per_iteration.set_precision("Crs_per_iter", 3);
+          timing_table_per_iteration.set_scientific("Prj_per_iter", true);
+          timing_table_per_iteration.set_precision("Prj_per_iter", 3);
+          timing_table_per_iteration.set_scientific("CG_per_iter", true);
+          timing_table_per_iteration.set_precision("CG_per_iter", 3);
 
           timing_table.write_text(std::cout);
+
+          std::cout << std::endl << std::endl;
+
+          timing_table_per_iteration.write_text(std::cout);
 
           std::cout << std::endl << std::endl;
 
