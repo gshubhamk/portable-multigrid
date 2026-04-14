@@ -53,7 +53,7 @@ namespace BK3
       if (nelmtPerBatch > n_cells)
         nelmtPerBatch = n_cells;
 
-      nelmtPerBatch = 1u;
+      // nelmtPerBatch = 1u;
 
 
       if (numBlocks == numbers::invalid_unsigned_int)
@@ -65,20 +65,11 @@ namespace BK3
       if (threadsPerBlock == numbers::invalid_unsigned_int)
         threadsPerBlock = nq * nq * std::max(1u, nelmtPerBatch);
 
-      // std::cout << std::endl
-      //           << std::endl
-      //           << "Launching kernel with numBlocks = " << numBlocks
-      //           << ", threadsPerBlock = " << threadsPerBlock
-      //           << ", nelmtPerBatch = " << nelmtPerBatch << std::endl
-      //           << std::endl
-      //           << std::endl;
-
-
       {
         unsigned int ssize =
           nm * nq + // shape values
           nq * nq + // co-shape gradients
-          4 * nelmtPerBatch *
+          5 * nelmtPerBatch *
             nq_total; // working scratch arrays: s_wsp0, s_wsp1, rqr, rqs, rqt
 
         const unsigned int shmem_size = ssize * sizeof(number);

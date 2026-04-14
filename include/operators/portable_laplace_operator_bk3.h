@@ -266,7 +266,6 @@ namespace Portable
                 //   numBlocks,
                 //   threadsPerBlock);
 
-
                 BK3::Parallel::
                   KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
                     precomputed_data.shape_values,
@@ -290,8 +289,6 @@ namespace Portable
         src.zero_out_ghost_values();
         matrix_free.copy_constrained_values(src, dst);
       }
-
-    // std::cout << "After vmult_dummy\n";
   }
 
 
