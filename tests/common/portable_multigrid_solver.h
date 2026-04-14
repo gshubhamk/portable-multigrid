@@ -79,7 +79,6 @@ namespace multigrid
       , matrix(level_matrices)
       , smooth(smoothers)
       , solution(minlevel, maxlevel)
-      // , solution_host(minlevel, maxlevel)
       , rhs(right_hand_side)
       , defect(minlevel, maxlevel)
       , t(minlevel, maxlevel)
@@ -98,21 +97,10 @@ namespace multigrid
 
       for (unsigned int level = minlevel; level <= maxlevel; ++level)
         {
-          // const auto &dof_handler = level_dof_handlers[level];
-
-          // IndexSet relevant_dofs =
-          //   DoFTools::extract_locally_relevant_dofs(dof_handler);
-
-
           matrix[level]->initialize_dof_vector(solution[level]);
 
           defect[level] = solution[level];
           t[level]      = solution[level];
-
-
-          // solution_host[level].reinit(dof_handler.locally_owned_dofs(),
-          //                             relevant_dofs,
-          //                             dof_handler.get_mpi_communicator());
         }
 
       fine_matrix->initialize_dof_vector(solution_fine);
@@ -226,7 +214,6 @@ namespace multigrid
     void
     v_cycle(const unsigned int level) const
     {
-      // std::cout << "Entering v-cycle level " << level << std::endl;
       if (level == minlevel)
         {
           Kokkos::fence();
@@ -234,9 +221,6 @@ namespace multigrid
           (coarse)(level, solution[level], defect[level]);
           Kokkos::fence();
           timings[level][0] += time.wall_time();
-
-          // std::cout << "After coarse solve "  << level << std::endl;
-
           return;
         }
 
@@ -248,9 +232,6 @@ namespace multigrid
       // (smooth)[level].step(solution[level], defect[level]);
       Kokkos::fence();
       timings[level][5] += time.wall_time();
-
-      // std::cout << "After pre smooth " << level << std::endl;
-
 
       Kokkos::fence();
       time.restart();
@@ -266,11 +247,7 @@ namespace multigrid
       Kokkos::fence();
       timings[level][1] += time.wall_time();
 
-      // std::cout << "After restrict_and_add " << level << std::endl;
-
-
       v_cycle(level - 1);
-
 
       Kokkos::fence();
       time.restart();
@@ -278,19 +255,12 @@ namespace multigrid
       Kokkos::fence();
       timings[level][2] += time.wall_time();
 
-        // std::cout << "After prolongate_and_add " << level << std::endl;
-
       Kokkos::fence();
       time.restart();
       (smooth)[level].step(solution[level], defect[level]);
       Kokkos::fence();
       timings[level][5] += time.wall_time();
-
-        // std::cout << "After post smooth " << level << std::endl;
     }
-
-    // const ObserverPointer<const DoFHandler<dim>> dof_handler;
-
 
     /**
      * Lowest level of cells.
@@ -308,10 +278,8 @@ namespace multigrid
     const MGLevelObject<DoFHandler<dim>>           &level_dof_handlers;
     const MGLevelObject<AffineConstraints<number>> &level_constraints;
 
-
     MGLevelObject<std::unique_ptr<Portable::MGTransferBase<dim, number>>>
       transfer;
-
 
     /**
      * The matrix for each level.
@@ -332,17 +300,10 @@ namespace multigrid
     typedef LinearAlgebra::distributed::Vector<number, MemorySpace::Host>
       VectorTypeHost;
 
-
     /**
      * The solution update after the multigrid step.
      */
     mutable MGLevelObject<VectorTypeDevice> solution;
-
-    /**
-     * The solution update after the multigrid step.
-     */
-    // mutable MGLevelObject<VectorTypeHost> solution_host;
-
 
     /**
      * Right hand side vector
@@ -360,7 +321,6 @@ namespace multigrid
      * Auxiliary vector.
      */
     mutable MGLevelObject<VectorTypeDevice> t;
-
 
     /**
      * The coarse solver
