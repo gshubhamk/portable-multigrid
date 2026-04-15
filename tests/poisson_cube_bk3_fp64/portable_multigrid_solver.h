@@ -47,17 +47,11 @@ namespace multigrid
     const bool          is_empty;
   };
 
-  template <int dim,
-            int fe_degree,
-            typename number,
-            typename number2,
-            typename SmootherType>
+  template <int dim, int fe_degree, typename number, typename SmootherType>
   class MultigridSolver
   {
   public:
     MultigridSolver(
-      const std::unique_ptr<Portable::LaplaceOperatorBase<dim, number2>>
-                                                     &fine_matrix,
       const MGLevelObject<DoFHandler<dim>>           &level_dof_handlers,
       const MGLevelObject<AffineConstraints<number>> &level_constraints,
       const MGLevelObject<
@@ -66,19 +60,19 @@ namespace multigrid
         std::unique_ptr<Portable::LaplaceOperatorBase<dim, number>>>
                                         &level_matrices,
       const MGLevelObject<SmootherType> &smoothers,
-      const LinearAlgebra::distributed::Vector<number2, MemorySpace::Default>
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
                         &right_hand_side,
       const unsigned int degree_pre,
       const unsigned int degree_post)
       : minlevel(level_dof_handlers.min_level())
       , maxlevel(level_dof_handlers.max_level())
-      , fine_matrix(fine_matrix)
       , level_dof_handlers(level_dof_handlers)
       , level_constraints(level_constraints)
       , transfer(mg_transfers)
       , matrix(level_matrices)
       , smooth(smoothers)
       , solution(minlevel, maxlevel)
+      , solution_host(minlevel, maxlevel)
       , rhs(right_hand_side)
       , defect(minlevel, maxlevel)
       , t(minlevel, maxlevel)
@@ -93,17 +87,21 @@ namespace multigrid
 
       AssertDimension(fe_degree, level_dof_handlers.back().get_fe().degree);
 
-
-
       for (unsigned int level = minlevel; level <= maxlevel; ++level)
         {
-          matrix[level]->initialize_dof_vector(solution[level]);
+          const auto &dof_handler = level_dof_handlers[level];
 
+          IndexSet relevant_dofs =
+            DoFTools::extract_locally_relevant_dofs(dof_handler);
+
+          matrix[level]->initialize_dof_vector(solution[level]);
           defect[level] = solution[level];
           t[level]      = solution[level];
-        }
 
-      fine_matrix->initialize_dof_vector(solution_fine);
+          solution_host[level].reinit(dof_handler.locally_owned_dofs(),
+                                      relevant_dofs,
+                                      dof_handler.get_mpi_communicator());
+        }
     }
     // Print a summary of computation times on the various levels
     void
@@ -135,12 +133,11 @@ namespace multigrid
         }
     }
 
-    void
-    reset_timings()
+    void reset_timings()
     {
       for (unsigned int l = 0; l < timings.size(); ++l)
-        for (unsigned int j = 0; j < timings[l].size(); ++j)
-          timings[l][j] = 0.;
+            for (unsigned int j = 0; j < timings[l].size(); ++j)
+              timings[l][j] = 0.;
     }
 
 
@@ -153,18 +150,15 @@ namespace multigrid
     {
       reset_timings();
 
+      ReductionControl           solver_control(100, 1e-16, 1e-9);
+      SolverCG<VectorTypeDevice> solver_cg(solver_control);
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+        solution_update = solution[maxlevel];
+      solution_update   = 0;
 
+      solver_cg.solve(*matrix[maxlevel], solution_update, rhs, *this);
 
-      using VectorTypeSolve =
-        LinearAlgebra::distributed::Vector<number2, MemorySpace::Default>;
-      ReductionControl          solver_control(100, 1e-16, 1e-9);
-      SolverCG<VectorTypeSolve> solver_cg(solver_control);
-
-
-      solution_fine = 0;
-      solver_cg.solve(*fine_matrix, solution_fine, rhs, *this);
-
-      solution[maxlevel].copy_locally_owned_data_from(solution_fine);
+      solution[maxlevel] = solution_update;
 
       return std::make_pair(solver_control.last_step(),
                             std::pow(solver_control.last_value() /
@@ -173,10 +167,9 @@ namespace multigrid
     }
 
     void
-    vmult(
-      LinearAlgebra::distributed::Vector<number2, MemorySpace::Default> &dst,
-      const LinearAlgebra::distributed::Vector<number2, MemorySpace::Default>
-        &src) const
+    vmult(LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
+          const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
+            &src) const
     {
       Timer time;
 
@@ -186,19 +179,17 @@ namespace multigrid
           defect[level] = 0;
         }
 
-      defect[maxlevel].copy_locally_owned_data_from(src);
-
+      defect[maxlevel] = src;
 
       v_cycle(maxlevel);
 
-
-      dst.copy_locally_owned_data_from(solution[maxlevel]);
+      dst = solution[maxlevel];
     }
 
     void
     do_matvec()
     {
-      fine_matrix->vmult(solution_fine, rhs);
+      matrix[maxlevel]->vmult(t[maxlevel], solution[maxlevel]);
     }
 
     void
@@ -214,6 +205,7 @@ namespace multigrid
     void
     v_cycle(const unsigned int level) const
     {
+      
       if (level == minlevel)
         {
           Kokkos::fence();
@@ -223,7 +215,6 @@ namespace multigrid
           timings[level][0] += time.wall_time();
           return;
         }
-
       Timer time;
 
       Kokkos::fence();
@@ -232,6 +223,7 @@ namespace multigrid
       // (smooth)[level].step(solution[level], defect[level]);
       Kokkos::fence();
       timings[level][5] += time.wall_time();
+
 
       Kokkos::fence();
       time.restart();
@@ -262,6 +254,9 @@ namespace multigrid
       timings[level][5] += time.wall_time();
     }
 
+    // const ObserverPointer<const DoFHandler<dim>> dof_handler;
+
+
     /**
      * Lowest level of cells.
      */
@@ -272,14 +267,13 @@ namespace multigrid
      */
     unsigned int maxlevel;
 
-    const std::unique_ptr<Portable::LaplaceOperatorBase<dim, number2>>
-      &fine_matrix;
-
     const MGLevelObject<DoFHandler<dim>>           &level_dof_handlers;
     const MGLevelObject<AffineConstraints<number>> &level_constraints;
 
+
     MGLevelObject<std::unique_ptr<Portable::MGTransferBase<dim, number>>>
       transfer;
+
 
     /**
      * The matrix for each level.
@@ -292,13 +286,13 @@ namespace multigrid
      */
     const MGLevelObject<SmootherType> &smooth;
 
-    LinearAlgebra::distributed::Vector<number2, MemorySpace::Default>
-      solution_fine;
+
 
     typedef LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
       VectorTypeDevice;
     typedef LinearAlgebra::distributed::Vector<number, MemorySpace::Host>
       VectorTypeHost;
+
 
     /**
      * The solution update after the multigrid step.
@@ -306,10 +300,15 @@ namespace multigrid
     mutable MGLevelObject<VectorTypeDevice> solution;
 
     /**
+     * The solution update after the multigrid step.
+     */
+    mutable MGLevelObject<VectorTypeHost> solution_host;
+
+
+    /**
      * Right hand side vector
      */
-    const LinearAlgebra::distributed::Vector<number2, MemorySpace::Default>
-      &rhs;
+    VectorTypeDevice rhs;
 
     /**
      * Input vector for the cycle. Contains the defect of the outer method
@@ -321,6 +320,7 @@ namespace multigrid
      * Auxiliary vector.
      */
     mutable MGLevelObject<VectorTypeDevice> t;
+
 
     /**
      * The coarse solver
