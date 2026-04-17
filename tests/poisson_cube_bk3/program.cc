@@ -1196,7 +1196,7 @@ main(int argc, char *argv[])
         n_post_smooth = std::atoi(argv[5]);
       if (argc > 6)
         use_doubling_mesh = argv[6][0] == 'd';
-      if (argc > 6)
+      if (argc > 7)
         overlap_communication_computation = std::atoi(argv[7]) == 1;
 
 
