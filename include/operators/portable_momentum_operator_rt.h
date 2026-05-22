@@ -20,6 +20,7 @@
 
 #include <memory>
 
+#include "kernels/kokkos_kernels_rt.h"
 #include "matrix_free/portable_shape_info.h"
 
 
@@ -58,7 +59,6 @@ namespace Portable
 
         const FiniteElement<dim> &fe = dof_handler.get_fe();
 
-
         AssertThrow(dynamic_cast<const FE_RaviartThomasNodal<dim> *>(&fe),
                     ExcMessage("This class only works for Raviart-Thomas elements."));
 
@@ -70,14 +70,14 @@ namespace Portable
         this->shape_info[0].reinit(shape_info_cpu.data[0]);
         this->shape_info[1].reinit(shape_info_cpu.data[1]);
 
+        // calculate the number of cells
+        n_cells = 0;
+        for (const auto &cell : dof_handler.active_cell_iterators())
+          if (cell->is_locally_owned())
+            ++n_cells;
+
         {
           const MPI_Comm comm = dof_handler.get_mpi_communicator();
-
-          // calculate the number of cells
-          unsigned int n_cells = 0;
-          for (const auto &cell : dof_handler.active_cell_iterators())
-            if (cell->is_locally_owned())
-              ++n_cells;
 
           IndexSet locally_owned_dofs = dof_handler.locally_owned_dofs();
 
@@ -360,13 +360,15 @@ namespace Portable
           Kokkos::deep_copy(dof_indices_per_cell, dof_indices_per_cell_host);
           Kokkos::fence();
         }
+
+        compute_geometric_tensors(mapping, quadrature, dof_handler, n_cells);
       }
 
       void
-      compute_geometric_tensor(const Mapping<dim>    &mapping,
-                               const Quadrature<1>   &quadrature_1d,
-                               const DoFHandler<dim> &dof_handler,
-                               const unsigned int     n_cells)
+      compute_geometric_tensors(const Mapping<dim>    &mapping,
+                                const Quadrature<1>   &quadrature_1d,
+                                const DoFHandler<dim> &dof_handler,
+                                const unsigned int     n_cells)
       {
         const unsigned int n_q_points_1d = quadrature_1d.size();
         const unsigned int n_q_points    = Utilities::pow(n_q_points_1d, dim);
@@ -404,6 +406,8 @@ namespace Portable
                   {
                     const DerivativeForm<1, dim, dim> jacobian = fe_values.jacobian(q);
 
+                    const auto determinant = jacobian.determinant();
+
                     Number components[symmetric_tensor_dim];
 
                     // we only need the symmetric part of the tensor, so we store it
@@ -419,10 +423,14 @@ namespace Portable
                           ++index;
                         }
 
+                    AssertThrow(determinant > 0,
+                                ExcMessage("Jacobian determinant must be positive , but it is " +
+                                           std::to_string(determinant) + "."));
+
                     for (unsigned int c = 0; c < symmetric_tensor_dim; ++c)
                       geometric_tensor_mass_host(cell_counter * symmetric_tensor_dim * n_q_points +
                                                  c * n_q_points + q) =
-                        components[c] / jacobian.determinant() * quad_weights[q];
+                        components[c] / determinant * quad_weights[q];
                   }
                 ++cell_counter;
               }
@@ -432,17 +440,173 @@ namespace Portable
         Kokkos::fence();
       }
 
-      //   template <int nq, int nm_t>
-      //   void
-      //   compute_cell_mass_operator(const DeviceVector<Number> shape_values_n,
-      //   const  DeviceVector<Number> shape_values_t,
-      //   const
-      // const Number * __restrict__ )
-      //   {
-      //     constexpr int nm_n = nm_t + 1;
+
+      void
+      test()
+      {
+        LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> src, dst;
+        src.reinit(partitioner);
+        dst.reinit(partitioner);
 
 
-      //   }
+
+        src = (Number)1.;
+
+        DeviceVector<Number> src_device(src.get_values(), src.locally_owned_size());
+        DeviceVector<Number> dst_device(dst.get_values(), dst.locally_owned_size());
+
+
+        Kokkos::parallel_for(
+          "write_dst_subdomain_neumann", src.locally_owned_size(), KOKKOS_LAMBDA(const int i) {
+            src_device(i) = i;
+          });
+
+
+
+        Kokkos::Array<DeviceVector<Number>, 2> shape_values;
+        shape_values[0] = shape_info[0].shape_values;
+        shape_values[1] = shape_info[1].shape_values;
+
+        std::cout << shape_info[0].fe_degree << std::endl;
+        std::cout << shape_info[0].shape_values.size() << std::endl;
+        std::cout << shape_info[1].shape_values.size() << std::endl;
+
+
+        if (shape_info[0].fe_degree == 2)
+          {
+            constexpr int n_t = 2, n_q = 3;
+
+
+            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+                                                               geometric_tensor_mass,
+                                                               src_device,
+                                                               dst_device,
+                                                               dof_indices_per_cell,
+                                                               n_cells,
+                                                               1u,
+                                                               1u,
+                                                               1u);
+          }
+        else if (shape_info[0].fe_degree == 3)
+          {
+            constexpr int n_t = 3, n_q = 5;
+
+
+            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+                                                               geometric_tensor_mass,
+                                                               src_device,
+                                                               dst_device,
+                                                               dof_indices_per_cell,
+                                                               n_cells,
+                                                               1u,
+                                                               1u,
+                                                               1u);
+          }
+        else if (shape_info[0].fe_degree == 4)
+          {
+            constexpr int n_t = 4, n_q = 6;
+
+
+            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+                                                               geometric_tensor_mass,
+                                                               src_device,
+                                                               dst_device,
+                                                               dof_indices_per_cell,
+                                                               n_cells,
+                                                               1u,
+                                                               1u,
+                                                               1u);
+          }
+
+
+        // using TeamHandle =
+        //   Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>::member_type;
+
+        // using SharedViewValues =
+        //   Kokkos::View<Number *,
+        //                MemorySpace::Default::kokkos_space::execution_space::scratch_memory_space,
+        //                Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+        // MemorySpace::Default::kokkos_space::execution_space exec;
+
+        // using TeamPolicy =
+        // Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
+
+
+        // auto team_policy = TeamPolicy(exec, n_cells, Kokkos::AUTO);
+        // team_policy.set_scratch_size(0, Kokkos::PerTeam(5 * n_q * n_q * n_q));
+
+        // std::cout << shape_values[1].size() << std::endl;
+        // std::cout << src.locally_owned_size() << std::endl;
+
+
+
+        // Kokkos::parallel_for(
+        //   "bla", team_policy, KOKKOS_LAMBDA(const TeamHandle &team_member) {
+        //     ::dealii::Portable::internal::EvaluatorTensorProduct<
+        //       ::dealii::Portable::internal::EvaluatorVariant::evaluate_general,
+        //       dim,
+        //       n_n,
+        //       n_q,
+        //       Number,
+        //       MemorySpace::Default::kokkos_space>
+        //       eval_n(team_member,
+        //              shape_values[0],
+        //              Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(),
+        //              Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(),
+        //              SharedViewValues());
+
+        //     ::dealii::Portable::internal::EvaluatorTensorProduct<
+        //       ::dealii::Portable::internal::EvaluatorVariant::evaluate_general,
+        //       dim,
+        //       n_t,
+        //       n_q,
+        //       Number,
+        //       MemorySpace::Default::kokkos_space>
+        //       eval_t(team_member,
+        //              shape_values[1],
+        //              Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(),
+        //              Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(),
+        //              SharedViewValues());
+
+        //     SharedViewValues in(team_member.team_shmem(), n_n * Utilities::pow(n_t, dim - 1));
+        //     SharedViewValues out(team_member.team_shmem(), n_q * Utilities::pow(n_q, dim - 1));
+
+        //     SharedViewValues temp1(team_member.team_shmem(),
+        //                            n_q * n_n * Utilities::pow(n_t, dim - 2));
+        //     SharedViewValues temp2(team_member.team_shmem(), n_q * Utilities::pow(n_q, dim - 1));
+
+
+        //     std::cout << "in.size() == " << in.size() << std::endl;
+        //     for (int i = 0; i < n_n * Utilities::pow(n_t, dim - 1); ++i)
+        //       {
+        //         // std::cout << dof_indices_per_cell(1 * n_n * Utilities::pow(n_t, dim - 1)+ i,
+        //         0)
+        //         // << std::endl;
+        //         in(i) =
+        //           src_device(dof_indices_per_cell(1 * n_n * Utilities::pow(n_t, dim - 1) + i,
+        //           0));
+        //         std::cout << in(i) << " ";
+        //       }
+        //     std::cout << std::endl << std::endl;
+
+
+        //     eval_t.template values<0, true, false, false>(in, temp1);
+        //     eval_n.template values<2, true, false, false>(temp1, temp2);
+        //     // eval_t.template values<2, true, false, false>(temp2, out);
+
+        //     for (int i = 0; i < n_q * n_n * Utilities::pow(n_t, dim - 2); ++i)
+        //       {
+        //         std::cout << temp2[i] << " ";
+        //       }
+
+        //     // for (int i = 0; i < n_q * n_q *Utilities::pow(n_t, dim - 2); ++i)
+        //     //   {
+        //     //     std::cout << out[i] << " ";
+        //     //   }
+        //   });
+        // std::cout << std::endl << std::endl;
+      }
 
     private:
       enum class CellOperation
@@ -472,6 +636,8 @@ namespace Portable
       ObserverPointer<const Quadrature<1>> quadrature;
 
       DeviceVector<Number> geometric_tensor_mass;
+
+      unsigned int n_cells;
     };
 
   } // namespace RT

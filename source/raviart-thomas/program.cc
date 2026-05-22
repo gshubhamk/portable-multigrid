@@ -302,6 +302,8 @@ LaplaceProblem<dim, fe_degree>::test()
   Portable::RT::RaviartThomasOperatorBase<dim, double> rt_operator;
 
   rt_operator.reinit(mapping, dof_handler, constraints, quadrature_1d);
+
+  rt_operator.test();
   // std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
 
   // Quadrature<dim> fe_support_quadrature(fe.get_generalized_support_points());
@@ -340,7 +342,7 @@ LaplaceProblem<dim, fe_degree>::run()
 {
   pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 1; ++cycle)
+  for (unsigned int cycle = 0; cycle < 4; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -391,9 +393,10 @@ main(int argc, char *argv[])
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
       const int dim           = 2;
-      const int max_fe_degree = 2;
+      const int min_fe_degree = 2;
+      const int max_fe_degree = 4;
 
-      for (int fe_degree = 2; fe_degree <= max_fe_degree; ++fe_degree)
+      for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)
         {
           solve_for_degree<dim, 1>(fe_degree);
         }
