@@ -442,41 +442,69 @@ namespace Portable
 
 
       void
-      test()
+      test(LinearAlgebra::distributed::Vector<Number, MemorySpace::Host>       &dst_host,
+           const LinearAlgebra::distributed::Vector<Number, MemorySpace::Host> &src_host)
       {
         LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> src, dst;
         src.reinit(partitioner);
         dst.reinit(partitioner);
 
+        LinearAlgebra::ReadWriteVector<Number> rw(src_host.locally_owned_size());
+        rw.import_elements(src_host, VectorOperation::insert);
+        src.reinit(partitioner);
+        src.import_elements(rw, VectorOperation::insert);
 
-
-        src = (Number)1.;
+        // src = (Number)1.;
 
         DeviceVector<Number> src_device(src.get_values(), src.locally_owned_size());
         DeviceVector<Number> dst_device(dst.get_values(), dst.locally_owned_size());
 
+        // for (unsigned int i = 0; i < src_host.locally_owned_size(); ++i)
+        //   {
+        //     std::cout << src_host(i) << " ";
+        //   }
+        // std::cout << std::endl << std::endl;
 
-        Kokkos::parallel_for(
-          "write_dst_subdomain_neumann", src.locally_owned_size(), KOKKOS_LAMBDA(const int i) {
-            src_device(i) = i;
-          });
 
+        // Kokkos::parallel_for(
+        //   "write_dst_subdomain_neumann", src.locally_owned_size(), KOKKOS_LAMBDA(const int i) {
+        //     src_device(i) = Number(i + 1);
+        //   });
 
 
         Kokkos::Array<DeviceVector<Number>, 2> shape_values;
         shape_values[0] = shape_info[0].shape_values;
         shape_values[1] = shape_info[1].shape_values;
 
-        std::cout << shape_info[0].fe_degree << std::endl;
-        std::cout << shape_info[0].shape_values.size() << std::endl;
-        std::cout << shape_info[1].shape_values.size() << std::endl;
+        // std::cout << shape_info[0].fe_degree << std::endl;
+        // std::cout << shape_info[0].shape_values.size() << std::endl;
+        // std::cout << shape_info[1].shape_values.size() << std::endl;
+        // std::cout << shape_info[0].shape_gradients_collocation_eo.size() << std::endl;
+        // std::cout << shape_info[1].shape_gradients_collocation.size() << std::endl;
+
+
+        // for (unsigned int i = 0; i < shape_info[0].shape_gradients_collocation_eo.size(); ++i)
+        //   {
+        //     std::cout << shape_info[0].shape_gradients_collocation_eo[i] << "  ";
+        //   }
+
+        // std::cout << std::endl << std::endl;
+
+
+        // for (unsigned int i = 0; i < shape_info[1].shape_gradients_collocation.size(); ++i)
+        //   {
+        //     std::cout << shape_info[1].shape_gradients_collocation[i] << "  ";
+        //   }
+
+        // std::cout << std::endl << std::endl;
+
+        AlignedVector<Number> src_values(), dst_values;
 
 
         if (shape_info[0].fe_degree == 2)
           {
             constexpr int n_t = 2, n_q = 3;
 
-
             Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
                                                                geometric_tensor_mass,
                                                                src_device,
@@ -486,10 +514,24 @@ namespace Portable
                                                                1u,
                                                                1u,
                                                                1u);
+
+
+            dealii::internal::EvaluatorTensorProductAnisotropic<
+              dim,
+              n_t,
+              n_q,
+              false,
+              dealii::internal::MatrixFreeFunctions::ElementType::tensor_raviart_thomas,
+              false>
+              eval_rt;
+
+            eval_rt.template normal<0>(shape_info_cpu.data[0],
+                                       src_host.get_values(),
+                                       dst_host.get_values());
           }
         else if (shape_info[0].fe_degree == 3)
           {
-            constexpr int n_t = 3, n_q = 5;
+            constexpr int n_t = 3, n_q = 4;
 
 
             Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
@@ -501,10 +543,24 @@ namespace Portable
                                                                1u,
                                                                1u,
                                                                1u);
+
+
+            dealii::internal::EvaluatorTensorProductAnisotropic<
+              dim,
+              n_t,
+              n_q,
+              false,
+              dealii::internal::MatrixFreeFunctions::ElementType::tensor_raviart_thomas,
+              false>
+              eval_rt;
+
+            eval_rt.template normal<0>(shape_info_cpu.data[0],
+                                       src_host.get_values(),
+                                       dst_host.get_values());
           }
         else if (shape_info[0].fe_degree == 4)
           {
-            constexpr int n_t = 4, n_q = 6;
+            constexpr int n_t = 4, n_q = 5;
 
 
             Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
@@ -516,7 +572,31 @@ namespace Portable
                                                                1u,
                                                                1u,
                                                                1u);
+
+
+
+            dealii::internal::EvaluatorTensorProductAnisotropic<
+              dim,
+              n_t,
+              n_q,
+              false,
+              dealii::internal::MatrixFreeFunctions::ElementType::tensor_raviart_thomas,
+              false>
+              eval_rt;
+
+            eval_rt.template normal<0>(shape_info_cpu.data[0],
+                                       src_host.get_values(),
+                                       dst_host.get_values());
           }
+
+
+
+        for (unsigned int i = 0; i < dst_host.locally_owned_size(); ++i)
+          {
+            std::cout << dst_host(i) << " ";
+          }
+        std::cout << std::endl << std::endl;
+
 
 
         // using TeamHandle =
@@ -606,6 +686,9 @@ namespace Portable
         //     //   }
         //   });
         // std::cout << std::endl << std::endl;
+
+        rw.import_elements(dst, VectorOperation::insert);
+        dst_host.import_elements(rw, VectorOperation::insert);
       }
 
     private:

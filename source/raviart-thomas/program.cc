@@ -16,6 +16,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
+#include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/operators.h>
 #include <deal.II/matrix_free/portable_fe_evaluation.h>
 #include <deal.II/matrix_free/portable_matrix_free.h>
@@ -37,6 +38,173 @@
 #include "operators/portable_laplace_operator.h"
 #include "operators/portable_momentum_operator_rt.h"
 using namespace dealii;
+
+const double factor_mass = 1.;
+const double factor_lapl = 0.;
+
+template <int dim, typename Number = double>
+class HelmholtzOperator
+{
+public:
+  using VectorType = LinearAlgebra::distributed::Vector<Number>;
+
+  HelmholtzOperator(const MatrixFree<dim, Number> &matrix_free)
+    : matrix_free(matrix_free)
+  {}
+
+  void
+  vmult(VectorType &dst, const VectorType &src) const
+  {
+    matrix_free.loop(&HelmholtzOperator::cell_operation,
+                     &HelmholtzOperator::inner_face_operation,
+                     &HelmholtzOperator::boundary_face_operation,
+                     this,
+                     dst,
+                     src,
+                     true,
+                     MatrixFree<dim, Number>::DataAccessOnFaces::gradients,
+                     MatrixFree<dim, Number>::DataAccessOnFaces::gradients);
+    for (unsigned int i : matrix_free.get_constrained_dofs())
+      dst.local_element(i) = src.local_element(i);
+  }
+
+  void
+  compute_diagonal(VectorType &diagonal) const
+  {
+    matrix_free.initialize_dof_vector(diagonal);
+    MatrixFreeTools::compute_diagonal<dim, -1, 0, dim, Number, VectorizedArray<Number>>(
+      matrix_free,
+      diagonal,
+      [](FEEvaluation<dim, -1, 0, dim, double> &phi)
+        {
+          phi.evaluate(EvaluationFlags::values);
+          for (const unsigned int q : phi.quadrature_point_indices())
+            phi.submit_value(phi.get_value(q), q);
+          phi.integrate(EvaluationFlags::values);
+        });
+  }
+
+private:
+  const MatrixFree<dim, Number> &matrix_free;
+
+  void
+  cell_operation(const MatrixFree<dim, Number>               &matrix_free,
+                 VectorType                                  &dst,
+                 const VectorType                            &src,
+                 const std::pair<unsigned int, unsigned int> &cell_range) const
+  {
+    FEEvaluation<dim, -1, 0, dim, Number> eval(matrix_free);
+
+    for (unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
+      {
+        eval.reinit(cell);
+        // eval.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
+        eval.read_dof_values(src);
+
+        // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
+        //   {
+        //     const auto val = eval.get_dof_value(i)[0];
+        //     std::cout << val << "  ";
+        //   }
+        // std::cout << std::endl;
+
+        // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
+        //   {
+        //     const auto val = eval.get_dof_value(i)[1];
+        //     std::cout << val << "  ";
+        //   }
+
+        eval.evaluate(EvaluationFlags::values);
+
+        for (const unsigned int q : eval.quadrature_point_indices())
+          {
+            const auto val = eval.get_value(q)[0];
+            std::cout << val << "  ";
+          }
+        std::cout << std::endl;
+
+        // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
+        //   {
+        //     const auto val = eval.get_dof_value(i)[1];
+        //     std::cout << val << "  ";
+        //   }
+
+
+        // eval.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
+        //   for (const unsigned int q : eval.quadrature_point_indices())
+        //     {
+        //       const auto val = eval.get_value(q);
+
+        //       std::cout << val << "  ";
+        //       // const auto grad = eval.get_gradient(q);
+        //       // eval.submit_gradient(make_vectorized_array<Number>(factor_lapl) * grad, q);
+        //       eval.submit_value(make_vectorized_array<Number>(factor_mass) * val, q);
+        //     }
+        //   std::cout << std::endl << std::endl;
+        //   // eval.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
+        //   eval.integrate_scatter(EvaluationFlags::values, dst);
+      }
+  }
+
+  void
+  inner_face_operation(const MatrixFree<dim, Number> & /*data*/,
+                       VectorType & /*dst*/,
+                       const VectorType & /*src*/,
+                       const std::pair<unsigned int, unsigned int> & /*face_range*/) const
+  {
+    // FEFaceEvaluation<dim, -1, 0, dim, Number> fe_eval(data, true);
+    // FEFaceEvaluation<dim, -1, 0, dim, Number> fe_eval_neighbor(data, false);
+    // const int actual_degree = data.get_dof_handler().get_fe().degree;
+
+    // for (unsigned int face = face_range.first; face < face_range.second; ++face)
+    //   {
+    //     fe_eval.reinit(face);
+    //     fe_eval_neighbor.reinit(face);
+
+    //     fe_eval.read_dof_values(src);
+    //     fe_eval.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
+    //     fe_eval_neighbor.read_dof_values(src);
+    //     fe_eval_neighbor.evaluate(EvaluationFlags::values | EvaluationFlags::gradients);
+    //     const VectorizedArray<Number> sigmaF =
+    //       (std::abs((fe_eval.normal_vector(0) * fe_eval.inverse_jacobian(0))[dim - 1]) +
+    //        std::abs((fe_eval.normal_vector(0) * fe_eval_neighbor.inverse_jacobian(0))[dim - 1]))
+    //        *
+    //       (Number)(std::max(actual_degree, 1) * (actual_degree + 1.0) * factor_lapl);
+
+    //     for (unsigned int q = 0; q < fe_eval.n_q_points; ++q)
+    //       {
+    //         const auto normal  = fe_eval.normal_vector(q);
+    //         const auto u_minus = fe_eval.get_value(q);
+    //         const auto u_plus  = fe_eval_neighbor.get_value(q);
+
+    //         const auto viscous_value_flux =
+    //           make_vectorized_array<Number>(0.5 * factor_lapl) *
+    //             (fe_eval.get_gradient(q) + fe_eval_neighbor.get_gradient(q)) * normal -
+    //           sigmaF * (u_minus - u_plus);
+    //         const auto viscous_gradient_flux =
+    //           make_vectorized_array<Number>(0.5 * factor_lapl) * (u_plus - u_minus);
+
+    //         fe_eval.submit_gradient(outer_product(viscous_gradient_flux, normal), q);
+    //         fe_eval_neighbor.submit_gradient(outer_product(viscous_gradient_flux, normal), q);
+    //         fe_eval.submit_value(-viscous_value_flux, q);
+    //         fe_eval_neighbor.submit_value(viscous_value_flux, q);
+    //       }
+    //     fe_eval.integrate(EvaluationFlags::values | EvaluationFlags::gradients);
+    //     fe_eval_neighbor.integrate(EvaluationFlags::values | EvaluationFlags::gradients);
+    //     fe_eval.distribute_local_to_global(dst);
+    //     fe_eval_neighbor.distribute_local_to_global(dst);
+    //   }
+  }
+
+  void
+  boundary_face_operation(const MatrixFree<dim, Number> &,
+                          VectorType &,
+                          const VectorType &,
+                          const std::pair<unsigned int, unsigned int> &) const
+  {
+    // use Neumann b.c. -> no additional terms here
+  }
+};
 
 template <int dim, int fe_degree>
 class LaplaceProblem
@@ -303,37 +471,38 @@ LaplaceProblem<dim, fe_degree>::test()
 
   rt_operator.reinit(mapping, dof_handler, constraints, quadrature_1d);
 
-  rt_operator.test();
-  // std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
+  // rt_operator.test();
 
-  // Quadrature<dim> fe_support_quadrature(fe.get_generalized_support_points());
+  MatrixFree<dim, double> matrix_free;
+  {
+    typename MatrixFree<dim, double>::AdditionalData mf_data;
+    mf_data.overlap_communication_computation = false;
 
-  // std::vector<Point<dim>> support_points(fe.get_generalized_support_points());
+    mf_data.mapping_update_flags =
+      update_values | update_JxW_values | update_quadrature_points | update_gradients;
+    mf_data.mapping_update_flags_inner_faces = update_values | update_gradients | update_JxW_values;
+    mf_data.mapping_update_flags_boundary_faces =
+      update_values | update_gradients | update_JxW_values | update_quadrature_points;
+    matrix_free.reinit(mapping, dof_handler, constraints, quadrature_1d, mf_data);
+  }
+  HelmholtzOperator<dim> helm_operator(matrix_free);
 
-  // std::cout << "FE support points: " << std::endl;
-  // for (unsigned int i = 0; i < support_points.size(); ++i)
-  //   std::cout << "  " << support_points[i] << std::endl;
+  LinearAlgebra::distributed::Vector<double> vec1, vec2, vec3, vec4, vec5;
+  matrix_free.initialize_dof_vector(vec1);
+  matrix_free.initialize_dof_vector(vec2);
+  matrix_free.initialize_dof_vector(vec3);
 
-  // FEValues<dim> fe_values(fe, fe_support_quadrature, update_quadrature_points);
 
-  // for (auto &cell : dof_handler.active_cell_iterators())
-  //   {
-  //     if (cell->is_locally_owned())
-  //       {
-  //         fe_values.reinit(cell);
+  for (unsigned int i = 0; i < vec1.locally_owned_size(); ++i)
+    vec1.local_element(i) = (double)(i);
 
-  //         const std::vector<Point<dim>> &support_points = fe_values.get_quadrature_points();
+  // helm_operator.vmult(vec2, vec1);
 
-  //         cell->get_dof_indices(local_dof_indices);
+  // for (unsigned int i = 0; i < vec2.locally_owned_size(); ++i)
+  //   std::cout << vec2.local_element(i) << "  ";
+  // std::cout << std::endl << std::endl;
 
-  //         std::cout << "cell " << cell->index() << " dof indices: ";
-  //         for (unsigned int i = 0; i < fe.dofs_per_cell; ++i)
-  //           {
-  //             std::cout << local_dof_indices[i] << " : " << support_points[i] << std::endl;
-  //           }
-  //         std::cout << std::endl<<std::endl;
-  //       }
-  //   }
+  rt_operator.test(vec3, vec1);
 }
 
 template <int dim, int fe_degree>
@@ -342,7 +511,7 @@ LaplaceProblem<dim, fe_degree>::run()
 {
   pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 4; ++cycle)
+  for (unsigned int cycle = 0; cycle < 1; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -350,7 +519,7 @@ LaplaceProblem<dim, fe_degree>::run()
       if (cycle == 0)
         {
           GridGenerator::hyper_cube(triangulation, 0., 2.);
-          triangulation.refine_global(1);
+          // triangulation.refine_global(1);
         }
       else
         {
@@ -393,8 +562,8 @@ main(int argc, char *argv[])
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
       const int dim           = 2;
-      const int min_fe_degree = 2;
-      const int max_fe_degree = 4;
+      const int min_fe_degree = 1;
+      const int max_fe_degree = 2;
 
       for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)
         {
