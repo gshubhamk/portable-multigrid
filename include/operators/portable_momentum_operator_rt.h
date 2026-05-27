@@ -986,10 +986,25 @@ namespace Portable
         src.reinit(partitioner);
         dst.reinit(partitioner);
 
-        LinearAlgebra::ReadWriteVector<Number> rw(src_host.locally_owned_size());
+        std::cout << src.size() << " " << dst.size() << std::endl;
+        std::cout << src_host.size() << " " << dst_host.size() << std::endl;
+
+        LinearAlgebra::ReadWriteVector<Number> rw(src_host.locally_owned_elements());
         rw.import_elements(src_host, VectorOperation::insert);
         src.reinit(partitioner);
         src.import_elements(rw, VectorOperation::insert);
+
+        // for (unsigned int cell = 0; cell < n_cells; ++cell)
+        //   {
+        //     std::cout << "Cell " << cell << ": ";
+        //     for (unsigned int i = 0; i < dof_indices_per_cell.extent(0); ++i)
+        //       {
+        //         const auto index = dof_indices_per_cell(i, cell);
+
+        //         std::cout << index << " ";
+        //       }
+        //     std::cout << std::endl;
+        //   }
 
 
         DeviceVector<Number> src_device(src.get_values(), src.locally_owned_size());

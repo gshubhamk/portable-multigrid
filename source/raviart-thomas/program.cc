@@ -491,7 +491,7 @@ LaplaceProblem<dim, fe_degree>::run()
 {
   pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 1; ++cycle)
+  for (unsigned int cycle = 0; cycle < 5; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -543,7 +543,7 @@ main(int argc, char *argv[])
 
       // const int dim           = 2;
       const int min_fe_degree = 1;
-      const int max_fe_degree = 3;
+      const int max_fe_degree = 4;
 
       for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)
         {

@@ -57,7 +57,6 @@ namespace Portable
       constexpr int n_q_total = Utilities::pow(n_q, dim);
 
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
-      constexpr int n_dofs_total         = dim * n_dofs_per_component;
 
       const int nelmt = n_cells;
 
@@ -125,8 +124,6 @@ namespace Portable
 
           while (eb < (nelmt + nelmtPerBatch - 1) / nelmtPerBatch)
             {
-              const int global_batch_offset = eb * nelmtPerBatch * n_dofs_total;
-
               // current nelmtPerBatch (edge case, last batch size can be less)
               const int c_nelmtPerBatch = std::min(nelmtPerBatch, nelmt - eb * nelmtPerBatch);
 
@@ -140,11 +137,12 @@ namespace Portable
                     const int e                  = tid / n_dofs_per_component;
                     const int local_dof_index_1d = tid % n_dofs_per_component;
 
-                    const int global_cell_id = global_batch_offset + e * n_dofs_total;
+                    const int global_cell_id = eb * nelmtPerBatch + e;
 
                     {
                       const unsigned int dof_x =
                         dof_indices(0 * n_dofs_per_component + local_dof_index_1d, global_cell_id);
+
                       if (dof_x != numbers::invalid_unsigned_int)
                         s_uq_0[tid] = vector_in[dof_x];
                       else
@@ -936,7 +934,7 @@ namespace Portable
                     const int e                  = tid / n_dofs_per_component;
                     const int local_dof_index_1d = tid % n_dofs_per_component;
 
-                    const int global_cell_id = global_batch_offset + e * n_dofs_total;
+                    const int global_cell_id = eb * nelmtPerBatch + e;
 
                     {
                       const unsigned int dof_x =
@@ -1004,9 +1002,7 @@ namespace Portable
       constexpr int n_q_total = Utilities::pow(n_q, dim);
 
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
-      constexpr int n_dofs_total         = dim * n_dofs_per_component;
-
-      const int nelmt = n_cells;
+      const int     nelmt                = n_cells;
 
       const size_t shmemPerBlock =
         Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
@@ -1092,8 +1088,6 @@ namespace Portable
 
           while (eb < (nelmt + nelmtPerBatch - 1) / nelmtPerBatch)
             {
-              const int global_batch_offset = eb * nelmtPerBatch * n_dofs_total;
-
               // current nelmtPerBatch (edge case, last batch size can be less)
               const int c_nelmtPerBatch = std::min(nelmtPerBatch, nelmt - eb * nelmtPerBatch);
 
@@ -1107,7 +1101,7 @@ namespace Portable
                     const int e                  = tid / n_dofs_per_component;
                     const int local_dof_index_1d = tid % n_dofs_per_component;
 
-                    const int global_cell_id = global_batch_offset + e * n_dofs_total;
+                    const int global_cell_id = eb * nelmtPerBatch + e;
 
                     {
                       const unsigned int dof_x =
@@ -1985,7 +1979,7 @@ namespace Portable
                     const int e                  = tid / n_dofs_per_component;
                     const int local_dof_index_1d = tid % n_dofs_per_component;
 
-                    const int global_cell_id = global_batch_offset + e * n_dofs_total;
+                    const int global_cell_id = eb * nelmtPerBatch + e;
 
                     {
                       const unsigned int dof_x =
