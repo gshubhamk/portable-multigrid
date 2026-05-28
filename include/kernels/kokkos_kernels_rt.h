@@ -1548,22 +1548,15 @@ namespace Portable
                                   qs[1] += r_q[n] * s_uq_1[e * n_q * n_q + n * n_q + p];
                                 }
 
-                              // Multiply gradients by geometric tensor
-                              for (int d = 0; d < dim; ++d)
-                                {
-                                  const int idx = e * dim * n_q_total + d * n_q_total + q * n_q + p;
-
-                                  s_duq_0[idx] = qr[0] * d_G[0][d] + qr[1] * d_G[1][d];
-                                  s_duq_1[idx] = qs[0] * d_G[0][d] + qs[1] * d_G[1][d];
-                                }
-
                               const int idx0 = e * dim * n_q_total + 0 * n_q_total + q * n_q + p;
                               const int idx1 = e * dim * n_q_total + 1 * n_q_total + q * n_q + p;
 
-                              std::cout << s_duq_0[idx0] << " " << s_duq_0[idx1] << " "
-                                        << s_duq_1[idx0] << " " << s_duq_1[idx1] << std::endl;
+                              s_duq_0[idx0] = qr[0] * d_G[0][0] + qs[0] * d_G[1][0];
+                              s_duq_0[idx1] = qr[0] * d_G[0][1] + qs[0] * d_G[1][1];
+
+                              s_duq_1[idx0] = qr[1] * d_G[0][0] + qs[1] * d_G[1][0];
+                              s_duq_1[idx1] = qr[1] * d_G[0][1] + qs[1] * d_G[1][1];
                             }
-                          // std::cout << "------------------\n";
                         }
                       else if constexpr (dim == 3)
                         {
@@ -1627,22 +1620,6 @@ namespace Portable
                                     r_r[n] * s_uq_2[e * n_q_total + n * n_q * n_q + q * n_q + p];
                                 }
 
-                              // Multiply gradients by geometric tensor: values
-                              for (int d = 0; d < dim; ++d)
-                                {
-                                  const int idx = e * dim * n_q_total + d * n_q_total +
-                                                  r * n_q * n_q + q * n_q + p;
-
-                                  s_duq_0[idx] =
-                                    qr[0] * d_G[0][d] + qr[1] * d_G[1][d] + qr[2] * d_G[2][d];
-
-                                  s_duq_1[idx] =
-                                    qs[0] * d_G[0][d] + qs[1] * d_G[1][d] + qs[2] * d_G[2][d];
-
-                                  s_duq_2[idx] =
-                                    qt[0] * d_G[0][d] + qt[1] * d_G[1][d] + qt[2] * d_G[2][d];
-                                }
-
                               const int idx0 =
                                 e * dim * n_q_total + 0 * n_q_total + r * n_q * n_q + q * n_q + p;
                               const int idx1 =
@@ -1650,11 +1627,26 @@ namespace Portable
                               const int idx2 =
                                 e * dim * n_q_total + 2 * n_q_total + r * n_q * n_q + q * n_q + p;
 
-                              std::cout << s_duq_0[idx0] << " " << s_duq_0[idx1] << " "
-                                        << s_duq_0[idx2] << " " << s_duq_1[idx0] << " "
-                                        << s_duq_1[idx1] << " " << s_duq_1[idx2] << " "
-                                        << s_duq_2[idx0] << " " << s_duq_2[idx1] << " "
-                                        << s_duq_2[idx2] << std::endl;
+                              s_duq_0[idx0] =
+                                qr[0] * d_G[0][0] + qs[0] * d_G[1][0] + qt[0] * d_G[2][0];
+                              s_duq_0[idx1] =
+                                qr[0] * d_G[0][1] + qs[0] * d_G[1][1] + qt[0] * d_G[2][1];
+                              s_duq_0[idx2] =
+                                qr[0] * d_G[0][2] + qs[0] * d_G[1][2] + qt[0] * d_G[2][2];
+
+                              s_duq_1[idx0] =
+                                qr[1] * d_G[0][0] + qs[1] * d_G[1][0] + qt[1] * d_G[2][0];
+                              s_duq_1[idx1] =
+                                qr[1] * d_G[0][1] + qs[1] * d_G[1][1] + qt[1] * d_G[2][1];
+                              s_duq_1[idx2] =
+                                qr[1] * d_G[0][2] + qs[1] * d_G[1][2] + qt[1] * d_G[2][2];
+
+                              s_duq_2[idx0] =
+                                qr[2] * d_G[0][0] + qs[2] * d_G[1][0] + qt[2] * d_G[2][0];
+                              s_duq_2[idx1] =
+                                qr[2] * d_G[0][1] + qs[2] * d_G[1][1] + qt[2] * d_G[2][1];
+                              s_duq_2[idx2] =
+                                qr[2] * d_G[0][2] + qs[2] * d_G[1][2] + qt[2] * d_G[2][2];
                             }
                         }
                     }
@@ -1681,9 +1673,9 @@ namespace Portable
 
                       if constexpr (dim == 2)
                         {
-                          const int p = tid % co_dimension_size;
+                          const int q = tid % co_dimension_size;
 
-                          for (int q = 0; q < n_q; ++q)
+                          for (int p = 0; p < n_q; ++p)
                             {
                               int index = 0;
                               for (int d1 = 0; d1 < dim; ++d1)
@@ -1704,31 +1696,25 @@ namespace Portable
                                     s_duq_1[e * dim * n_q_total + d1 * n_q_total + q * n_q + p];
                                 }
 
-                              // multiply d_G by gradients
-                              for (int d = 0; d < dim; ++d)
-                                {
-                                  const int idx = e * dim * n_q_total + d * n_q_total + q * n_q + p;
+                              const int idx0 = e * dim * n_q_total + 0 * n_q_total + q * n_q + p;
+                              const int idx1 = e * dim * n_q_total + 1 * n_q_total + q * n_q + p;
 
-                                  s_duq_0[idx] = d_G[d][0] * qr[0] + d_G[d][1] * qs[0];
-                                  s_duq_1[idx] = d_G[d][0] * qr[1] + d_G[d][1] * qs[1];
-                                }
-                              // const int idx0 = e * dim * n_q_total + 0 * n_q_total + q * n_q + p;
-                              // const int idx1 = e * dim * n_q_total + 1 * n_q_total + q * n_q + p;
+                              s_duq_0[idx0] = d_G[0][0] * qr[0] + d_G[0][1] * qs[0];
+                              s_duq_0[idx1] = d_G[0][0] * qr[1] + d_G[0][1] * qs[1];
 
-                              // std::cout << s_duq_0[idx0] << " " << s_duq_0[idx1] << " "
-                              //           << s_duq_1[idx0] << " " << s_duq_1[idx1] << std::endl;
+                              s_duq_1[idx0] = d_G[1][0] * qr[0] + d_G[1][1] * qs[0];
+                              s_duq_1[idx1] = d_G[1][0] * qr[1] + d_G[1][1] * qs[1];
                             }
-                          // std::cout << "------------------\n";
                         }
 
                       else if constexpr (dim == 3)
                         {
                           Number qt[dim];
 
-                          const int p = (tid % co_dimension_size) / n_q;
-                          const int q = tid % n_q;
+                          const int q = (tid % co_dimension_size) / n_q;
+                          const int r = tid % n_q;
 
-                          for (int r = 0; r < n_q; ++r)
+                          for (int p = 0; p < n_q; ++p)
                             {
                               int index = 0;
                               for (int d1 = 0; d1 < dim; ++d1)
@@ -1750,18 +1736,33 @@ namespace Portable
                                                    r * n_q * n_q + q * n_q + p];
                                 }
 
-                              // multiply d_G by gradients
-                              for (int d = 0; d < dim; ++d)
-                                {
-                                  const int idx = e * dim * n_q_total + d * n_q_total + q * n_q + p;
+                              const int idx0 =
+                                e * dim * n_q_total + 0 * n_q_total + r * n_q * n_q + q * n_q + p;
+                              const int idx1 =
+                                e * dim * n_q_total + 1 * n_q_total + r * n_q * n_q + q * n_q + p;
+                              const int idx2 =
+                                e * dim * n_q_total + 2 * n_q_total + r * n_q * n_q + q * n_q + p;
 
-                                  s_duq_0[idx] =
-                                    d_G[d][0] * qr[0] + d_G[d][1] * qs[0] + d_G[d][2] * qt[0];
-                                  s_duq_1[idx] =
-                                    d_G[d][0] * qr[1] + d_G[d][1] * qs[1] + d_G[d][2] * qt[1];
-                                  s_duq_2[idx] =
-                                    d_G[d][0] * qr[2] + d_G[d][1] * qs[2] + d_G[d][2] * qt[2];
-                                }
+                              s_duq_0[idx0] =
+                                d_G[0][0] * qr[0] + d_G[0][1] * qs[0] + d_G[0][2] * qt[0];
+                              s_duq_0[idx1] =
+                                d_G[0][0] * qr[1] + d_G[0][1] * qs[1] + d_G[0][2] * qt[1];
+                              s_duq_0[idx2] =
+                                d_G[0][0] * qr[2] + d_G[0][1] * qs[2] + d_G[0][2] * qt[2];
+
+                              s_duq_1[idx0] =
+                                d_G[1][0] * qr[0] + d_G[1][1] * qs[0] + d_G[1][2] * qt[0];
+                              s_duq_1[idx1] =
+                                d_G[1][0] * qr[1] + d_G[1][1] * qs[1] + d_G[1][2] * qt[1];
+                              s_duq_1[idx2] =
+                                d_G[1][0] * qr[2] + d_G[1][1] * qs[2] + d_G[1][2] * qt[2];
+
+                              s_duq_2[idx0] =
+                                d_G[2][0] * qr[0] + d_G[2][1] * qs[0] + d_G[2][2] * qt[0];
+                              s_duq_2[idx1] =
+                                d_G[2][0] * qr[1] + d_G[2][1] * qs[1] + d_G[2][2] * qt[1];
+                              s_duq_2[idx2] =
+                                d_G[2][0] * qr[2] + d_G[2][1] * qs[2] + d_G[2][2] * qt[2];
                             }
                         }
                     }
@@ -1784,8 +1785,9 @@ namespace Portable
                           for (int n = 0; n < n_q; ++n)
                             {
                               const int idx_0 = e * dim * n_q_total + 0 * n_q_total + q * n_q + n;
-                              r_p0[n]         = s_duq_0[idx_0];
-                              r_p1[n]         = s_duq_1[idx_0];
+
+                              r_p0[n] = s_duq_0[idx_0];
+                              r_p1[n] = s_duq_1[idx_0];
 
                               r_q[n] = co_shape_gradients[q * n_q + n];
                             }
@@ -1803,7 +1805,7 @@ namespace Portable
                               for (unsigned int n = 0; n < n_q; ++n)
                                 {
                                   const int idx_1 =
-                                    e * dim * n_q_total + 1 * n_q_total + q * n_q + n;
+                                    e * dim * n_q_total + 1 * n_q_total + n * n_q + p;
                                   tmp0 += s_duq_0[idx_1] * r_q[n];
                                   tmp1 += s_duq_1[idx_1] * r_q[n];
                                 }
@@ -1818,7 +1820,7 @@ namespace Portable
                           const int r = tid % n_q;
 
                           // copy to register
-                          for (int n = 0; n < q; ++n)
+                          for (int n = 0; n < n_q; ++n)
                             {
                               const int idx_0 =
                                 e * dim * n_q_total + 0 * n_q_total + r * n_q * n_q + q * n_q + n;
