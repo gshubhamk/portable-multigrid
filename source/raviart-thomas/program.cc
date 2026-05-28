@@ -99,18 +99,28 @@ private:
       {
         eval.reinit(cell);
         // eval.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
-        eval.gather_evaluate(src, EvaluationFlags::values);
+        // eval.gather_evaluate(src, EvaluationFlags::values);
+        eval.gather_evaluate(src, EvaluationFlags::gradients);
+
 
         for (const unsigned int q : eval.quadrature_point_indices())
           {
-            const auto val = eval.get_value(q);
+            // const auto val = eval.get_value(q);
 
-            // const auto grad = eval.get_gradient(q);
+
+            const auto grad = eval.get_gradient(q);
+            std::cout << grad << std::endl;
+            eval.submit_gradient(grad, q);
+
+            // std::cout << eval.get_gradient(q) << std::endl;
+
+
             // eval.submit_gradient(make_vectorized_array<Number>(factor_lapl) * grad, q);
-            eval.submit_value(make_vectorized_array<Number>(factor_mass) * val, q);
+            // eval.submit_value(make_vectorized_array<Number>(factor_mass) * val, q);
           }
         //   // eval.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
-        eval.integrate_scatter(EvaluationFlags::values, dst);
+        // eval.integrate_scatter(EvaluationFlags::values, dst);
+        eval.integrate_scatter(EvaluationFlags::gradients, dst);
       }
   }
 
@@ -491,7 +501,7 @@ LaplaceProblem<dim, fe_degree>::run()
 {
   pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 5; ++cycle)
+  for (unsigned int cycle = 0; cycle < 1; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -543,12 +553,12 @@ main(int argc, char *argv[])
 
       // const int dim           = 2;
       const int min_fe_degree = 1;
-      const int max_fe_degree = 4;
+      const int max_fe_degree = 3;
 
-      for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)
-        {
-          solve_for_degree<2, 1>(fe_degree);
-        }
+      // for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)
+      //   {
+      //     solve_for_degree<2, 1>(fe_degree);
+      //   }
 
 
       for (int fe_degree = min_fe_degree; fe_degree <= max_fe_degree; ++fe_degree)

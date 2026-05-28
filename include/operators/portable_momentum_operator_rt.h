@@ -453,15 +453,16 @@ namespace Portable
                             Number sum = 0, sum_stiffness = 0;
                             for (int k = 0; k < dim; ++k)
                               {
-                                sum += jacobian[d1][k] * jacobian[d2][k];
-                                sum_stiffness += jacobian[d1][k] * jacobian[d2][k];
+                                sum += jacobian[k][d1] * jacobian[k][d2];
+                                sum_stiffness += inv_jacobian[d1][k] * inv_jacobian[d2][k];
                               }
                             geometric_tensor_mass_host(
-                              cell_counter * symmetric_tensor_dim * n_q_points + index * n_q_points +
-                              q) = sum * quad_weights[q] / determinant;
-                            geometric_tensor_stiffness_host(cell_counter * symmetric_tensor_dim *
-                                                              n_q_points +
-                                                            index * n_q_points + q) = sum_stiffness;
+                              cell_counter * symmetric_tensor_dim * n_q_points +
+                              index * n_q_points + q) = sum * quad_weights[q] / determinant;
+
+                            geometric_tensor_stiffness_host(
+                              cell_counter * symmetric_tensor_dim * n_q_points +
+                              index * n_q_points + q) = sum_stiffness ;
 
                             ++index;
                           }
@@ -485,18 +486,20 @@ namespace Portable
                     // for (unsigned int c = 0; c < symmetric_tensor_dim; ++c)
                     //   {
                     //     geometric_tensor_mass_host(
-                    //       cell_counter * symmetric_tensor_dim * n_q_points + c * n_q_points + q) =
-                    //       components[c];
+                    //       cell_counter * symmetric_tensor_dim * n_q_points + c * n_q_points + q)
+                    //       = components[c];
                     //     geometric_tensor_stiffness_host(
-                    //       cell_counter * symmetric_tensor_dim * n_q_points + c * n_q_points + q) =
-                    //       components_stiffness[c];
-                      // }
+                    //       cell_counter * symmetric_tensor_dim * n_q_points + c * n_q_points + q)
+                    //       = components_stiffness[c];
+                    // }
                   }
                 ++cell_counter;
               }
           }
 
         Kokkos::deep_copy(geometric_tensor_mass, geometric_tensor_mass_host);
+        Kokkos::fence();
+        Kokkos::deep_copy(geometric_tensor_stiffness, geometric_tensor_stiffness_host);
         Kokkos::fence();
 
         Kokkos::deep_copy(cell_inverse_jacobians_transpose, inverse_jacobian_transpose_host);
@@ -1113,15 +1116,30 @@ namespace Portable
           {
             constexpr int n_t = 2, n_q = 3;
 
-            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
-                                                               geometric_tensor_mass,
-                                                               src_device,
-                                                               dst_device,
-                                                               dof_indices_per_cell,
-                                                               n_cells,
-                                                               1u,
-                                                               1u,
-                                                               1u);
+            // Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+            //                                                    geometric_tensor_mass,
+            //                                                    src_device,
+            //                                                    dst_device,
+            //                                                    dof_indices_per_cell,
+            //                                                    n_cells,
+            //                                                    1u,
+            //                                                    1u,
+            //                                                    1u);
+
+
+            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              1u,
+              1u,
+              1u);
+
             // test_cpu<n_t, n_q>(in0.data(), temp1.data(), src_device, dst_device);
             // test_cpu<n_t, n_q, 1>(in1.data(), out1.data(), src_device, dst_device);
             // if (dim == 3)
@@ -1137,15 +1155,28 @@ namespace Portable
             // if (dim == 3)
             //   test_cpu<n_t, n_q, 2>(in2.data(), out2.data(), src_device, dst_device);
 
-            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
-                                                               geometric_tensor_mass,
-                                                               src_device,
-                                                               dst_device,
-                                                               dof_indices_per_cell,
-                                                               n_cells,
-                                                               1u,
-                                                               1u,
-                                                               1u);
+            // Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+            //                                                    geometric_tensor_mass,
+            //                                                    src_device,
+            //                                                    dst_device,
+            //                                                    dof_indices_per_cell,
+            //                                                    n_cells,
+            //                                                    1u,
+            //                                                    1u,
+            //                                                    1u);
+
+            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              1u,
+              1u,
+              1u);
           }
         else if (shape_info[0].fe_degree == 4)
           {
@@ -1156,17 +1187,31 @@ namespace Portable
             // if (dim == 3)
             //   test_cpu<n_t, n_q, 2>(in2.data(), out2.data(), src_device, dst_device);
 
-            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
-                                                               geometric_tensor_mass,
-                                                               src_device,
-                                                               dst_device,
-                                                               dof_indices_per_cell,
-                                                               n_cells,
-                                                               1u,
-                                                               1u,
-                                                               1u);
+            // Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+            //                                                    geometric_tensor_mass,
+            //                                                    src_device,
+            //                                                    dst_device,
+            //                                                    dof_indices_per_cell,
+            //                                                    n_cells,
+            //                                                    1u,
+            //                                                    1u,
+            //                                                    1u);
+
+
+            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              1u,
+              1u,
+              1u);
           }
-          else if (shape_info[0].fe_degree == 5)
+        else if (shape_info[0].fe_degree == 5)
           {
             constexpr int n_t = 5, n_q = 6;
 
@@ -1175,15 +1220,29 @@ namespace Portable
             // if (dim == 3)
             //   test_cpu<n_t, n_q, 2>(in2.data(), out2.data(), src_device, dst_device);
 
-            Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
-                                                               geometric_tensor_mass,
-                                                               src_device,
-                                                               dst_device,
-                                                               dof_indices_per_cell,
-                                                               n_cells,
-                                                               1u,
-                                                               1u,
-                                                               1u);
+            // Portable::RT::mass_operator<dim, n_t, n_q, Number>(shape_values,
+            //                                                    geometric_tensor_mass,
+            //                                                    src_device,
+            //                                                    dst_device,
+            //                                                    dof_indices_per_cell,
+            //                                                    n_cells,
+            //                                                    1u,
+            //                                                    1u,
+            //                                                    1u);
+
+
+            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              1u,
+              1u,
+              1u);
           }
 
         dst.compress(VectorOperation::add);
