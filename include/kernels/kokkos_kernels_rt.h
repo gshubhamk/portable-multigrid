@@ -71,9 +71,10 @@ namespace Portable
                               std::max(1, (nelmt + nelmtPerBatch - 1) / nelmtPerBatch) :
                               n_blocks;
 
-      const int threadsPerBlock = (threads_per_block == numbers::invalid_unsigned_int) ?
-                                    std::min(std::max(1, nelmtPerBatch) * n_q * n_q, 512) :
-                                    threads_per_block;
+      const int threadsPerBlock =
+        (threads_per_block == numbers::invalid_unsigned_int) ?
+          std::min(std::max(1, nelmtPerBatch) * Utilities::pow(n_q, dim - 1), 512) :
+          threads_per_block;
 
 
       const unsigned int ssize = n_n * n_q + n_t * n_q + 5 * nelmtPerBatch * n_q_total;
@@ -999,27 +1000,34 @@ namespace Portable
 
       constexpr int n_q_total = Utilities::pow(n_q, dim);
 
+      constexpr int n_components = dim;
+
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
       const int     nelmt                = n_cells;
 
       const size_t shmemPerBlock =
         Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
 
-      const int nelmtPerBatch = (n_cells_per_batch == numbers::invalid_unsigned_int) ?
-                                  (shmemPerBlock / (8 * n_q_total) / sizeof(Number)) :
-                                  n_cells_per_batch;
+      const int nelmtPerBatch =
+        (n_cells_per_batch == numbers::invalid_unsigned_int) ?
+          (shmemPerBlock / (n_components * (dim + 1) * n_q_total) / sizeof(Number)) :
+          n_cells_per_batch;
 
       const int numBlocks = (n_blocks == numbers::invalid_unsigned_int) ?
                               std::max(1, (nelmt + nelmtPerBatch - 1) / nelmtPerBatch) :
                               n_blocks;
 
-      const int threadsPerBlock = (threads_per_block == numbers::invalid_unsigned_int) ?
-                                    std::min(std::max(1, nelmtPerBatch) * n_q * n_q, 512) :
-                                    threads_per_block;
+      const int threadsPerBlock =
+        (threads_per_block == numbers::invalid_unsigned_int) ?
+          std::min(std::max(1, nelmtPerBatch) * Utilities::pow(n_q, dim - 1), 512) :
+          threads_per_block;
 
 
-      const unsigned int ssize = n_n * n_q + n_t * n_q + n_q * n_q + 5 * nelmtPerBatch * n_q_total +
-                                 3 * nelmtPerBatch * n_q_total * dim;
+      const unsigned int ssize = n_n * n_q   // normal shape values
+                                 + n_t * n_q // tangent shape values
+                                 + n_q * n_q // shape gradients at collocation points
+                                 + n_components * nelmtPerBatch * n_q_total        // values
+                                 + n_components * dim * nelmtPerBatch * n_q_total; // gradients
 
 
       const unsigned int shmem_size = ssize * sizeof(Number);
@@ -1045,10 +1053,8 @@ namespace Portable
           Number *shape_values_tangent = shape_values_normal + n_n * n_q;
           Number *co_shape_gradients   = shape_values_tangent + n_t * n_q;
 
-          Number *s_wsp0 = co_shape_gradients + n_q * n_q;
-          Number *s_wsp1 = s_wsp0 + nelmtPerBatch * n_q_total;
 
-          Number *s_uq_0  = s_wsp1 + nelmtPerBatch * n_q_total;
+          Number *s_uq_0  = co_shape_gradients + n_q * n_q;
           Number *s_duq_0 = s_uq_0 + nelmtPerBatch * n_q_total;
           Number *s_uq_1  = s_duq_0 + nelmtPerBatch * n_q_total * dim;
           Number *s_duq_1 = s_uq_1 + nelmtPerBatch * n_q_total;
@@ -1164,7 +1170,7 @@ namespace Portable
                                 for (int i = 0; i < n_n; ++i)
                                   tmp += shape_values_normal[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -1182,7 +1188,7 @@ namespace Portable
                                   tmp += shape_values_normal[i * n_q + p] * r_p[i];
 
 
-                                s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -1203,7 +1209,7 @@ namespace Portable
                             const int p = tid % co_dimension_size;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -1220,7 +1226,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -1228,7 +1234,7 @@ namespace Portable
                                 for (int j = 0; j < n_t; ++j)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                       }
@@ -1250,7 +1256,7 @@ namespace Portable
                             const int q = tid % n_q;
 
                             for (int k = 0; k < n_t; ++k)
-                              r_p[k] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[k] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -1290,7 +1296,7 @@ namespace Portable
                                 Number tmp = 0;
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
-                                s_wsp1[e * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -1307,7 +1313,7 @@ namespace Portable
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -1328,7 +1334,7 @@ namespace Portable
                             const int p = tid % co_dimension_size;
 
                             for (int j = 0; j < n_n; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_n + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_n + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -1345,7 +1351,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int j = 0; j < n_n; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -1353,7 +1359,7 @@ namespace Portable
                                 for (int j = 0; j < n_n; ++j)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                       }
@@ -1376,7 +1382,7 @@ namespace Portable
 
                             for (int k = 0; k < n_t; ++k)
                               r_p[k] =
-                                s_wsp0[e * n_dofs_per_component + k * n_q * n_q + q * n_q + p];
+                                s_duq_0[e * n_dofs_per_component + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -1417,7 +1423,7 @@ namespace Portable
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         team_member.team_barrier();
@@ -1436,7 +1442,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -1444,7 +1450,7 @@ namespace Portable
                                 for (int j = 0; j < n_t; ++j)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                         team_member.team_barrier();
@@ -1463,7 +1469,7 @@ namespace Portable
                             const int q = tid % n_q;
 
                             for (int k = 0; k < n_n; ++k)
-                              r_p[k] = s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
+                              r_p[k] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -1903,7 +1909,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_tangent[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -1931,7 +1937,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -1940,7 +1946,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_t; ++j)
                               {
@@ -1948,7 +1954,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -1969,7 +1975,7 @@ namespace Portable
                             const int j = tid % co_dimension_size;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_n; ++i)
                               {
@@ -1986,7 +1992,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_n; ++i)
                               {
@@ -2027,7 +2033,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_tangent[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -2055,7 +2061,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -2064,7 +2070,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_n; ++j)
                               {
@@ -2072,7 +2078,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -2093,7 +2099,7 @@ namespace Portable
                             const int j = tid % co_dimension_size;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_n + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_n + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -2110,7 +2116,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -2151,7 +2157,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_normal[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -2171,7 +2177,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_t; ++j)
                               {
@@ -2179,7 +2185,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                           team_member.team_barrier();
@@ -2198,7 +2204,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -2280,6 +2286,8 @@ namespace Portable
                        const unsigned int threads_per_block = numbers::invalid_unsigned_int)
 
     {
+      constexpr int n_components = dim;
+
       if (n_cells == 0)
         return;
 
@@ -2299,24 +2307,29 @@ namespace Portable
       const size_t shmemPerBlock =
         Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
 
-      const int nelmtPerBatch = (n_cells_per_batch == numbers::invalid_unsigned_int) ?
-                                  (shmemPerBlock / (8 * n_q_total) / sizeof(Number)) :
-                                  n_cells_per_batch;
+      const int nelmtPerBatch =
+        (n_cells_per_batch == numbers::invalid_unsigned_int) ?
+          (shmemPerBlock / (n_components * (dim + 1) * n_q_total) / sizeof(Number)) :
+          n_cells_per_batch;
 
       const int numBlocks = (n_blocks == numbers::invalid_unsigned_int) ?
                               std::max(1, (nelmt + nelmtPerBatch - 1) / nelmtPerBatch) :
                               n_blocks;
 
-      const int threadsPerBlock = (threads_per_block == numbers::invalid_unsigned_int) ?
-                                    std::min(std::max(1, nelmtPerBatch) * n_q * n_q, 512) :
-                                    threads_per_block;
+      const int threadsPerBlock =
+        (threads_per_block == numbers::invalid_unsigned_int) ?
+          std::min(std::max(1, nelmtPerBatch) * Utilities::pow(n_q, dim - 1), 512) :
+          threads_per_block;
 
 
-      const unsigned int ssize = n_n * n_q + n_t * n_q + n_q * n_q + 5 * nelmtPerBatch * n_q_total +
-                                 3 * nelmtPerBatch * n_q_total * dim;
+      const unsigned int ssize = n_n * n_q   // normal shape values
+                                 + n_t * n_q // tangent shape values
+                                 + n_q * n_q // shape gradients at collocation points
+                                 + n_components * nelmtPerBatch * n_q_total        // values
+                                 + n_components * dim * nelmtPerBatch * n_q_total; // gradients
 
 
-      const unsigned int shmem_size = ssize * sizeof(Number);
+      unsigned int shmem_size = ssize * sizeof(Number);
 
       typedef Kokkos::TeamPolicy<>::member_type MemberType;
       Kokkos::TeamPolicy<>                      policy(numBlocks, threadsPerBlock);
@@ -2338,10 +2351,7 @@ namespace Portable
           Number *shape_values_tangent = shape_values_normal + n_n * n_q;
           Number *co_shape_gradients   = shape_values_tangent + n_t * n_q;
 
-          Number *s_wsp0 = co_shape_gradients + n_q * n_q;
-          Number *s_wsp1 = s_wsp0 + nelmtPerBatch * n_q_total;
-
-          Number *s_uq_0  = s_wsp1 + nelmtPerBatch * n_q_total;
+          Number *s_uq_0  = co_shape_gradients + n_q * n_q;
           Number *s_duq_0 = s_uq_0 + nelmtPerBatch * n_q_total;
           Number *s_uq_1  = s_duq_0 + nelmtPerBatch * n_q_total * dim;
           Number *s_duq_1 = s_uq_1 + nelmtPerBatch * n_q_total;
@@ -2456,7 +2466,7 @@ namespace Portable
                                 for (int i = 0; i < n_n; ++i)
                                   tmp += shape_values_normal[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -2474,7 +2484,7 @@ namespace Portable
                                   tmp += shape_values_normal[i * n_q + p] * r_p[i];
 
 
-                                s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -2495,7 +2505,7 @@ namespace Portable
                             const int p = tid % co_dimension_size;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -2512,7 +2522,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -2520,7 +2530,7 @@ namespace Portable
                                 for (int j = 0; j < n_t; ++j)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                       }
@@ -2542,7 +2552,7 @@ namespace Portable
                             const int q = tid % n_q;
 
                             for (int k = 0; k < n_t; ++k)
-                              r_p[k] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[k] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -2582,7 +2592,7 @@ namespace Portable
                                 Number tmp = 0;
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
-                                s_wsp1[e * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -2599,7 +2609,7 @@ namespace Portable
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -2620,7 +2630,7 @@ namespace Portable
                             const int p = tid % co_dimension_size;
 
                             for (int j = 0; j < n_n; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_n + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_n + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -2637,7 +2647,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int j = 0; j < n_n; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -2645,7 +2655,7 @@ namespace Portable
                                 for (int j = 0; j < n_n; ++j)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                       }
@@ -2668,7 +2678,7 @@ namespace Portable
 
                             for (int k = 0; k < n_t; ++k)
                               r_p[k] =
-                                s_wsp0[e * n_dofs_per_component + k * n_q * n_q + q * n_q + p];
+                                s_duq_0[e * n_dofs_per_component + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -2709,7 +2719,7 @@ namespace Portable
                                 for (int i = 0; i < n_t; ++i)
                                   tmp += shape_values_tangent[i * n_q + p] * r_p[i];
 
-                                s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         team_member.team_barrier();
@@ -2728,7 +2738,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int j = 0; j < n_t; ++j)
-                              r_p[j] = s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
+                              r_p[j] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
 
                             for (int q = 0; q < n_q; ++q)
                               {
@@ -2736,7 +2746,7 @@ namespace Portable
                                 for (int j = 0; j < n_t; ++j)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[j];
 
-                                s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
+                                s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
                               }
                           }
                         team_member.team_barrier();
@@ -2755,7 +2765,7 @@ namespace Portable
                             const int q = tid % n_q;
 
                             for (int k = 0; k < n_n; ++k)
-                              r_p[k] = s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
+                              r_p[k] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
 
                             for (int r = 0; r < n_q; ++r)
                               {
@@ -3226,7 +3236,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_tangent[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -3254,7 +3264,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -3263,7 +3273,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_t; ++j)
                               {
@@ -3271,7 +3281,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -3292,7 +3302,7 @@ namespace Portable
                             const int j = tid % co_dimension_size;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_n; ++i)
                               {
@@ -3309,7 +3319,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_n; ++i)
                               {
@@ -3350,7 +3360,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_tangent[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -3378,7 +3388,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                         else if constexpr (dim == 3)
@@ -3387,7 +3397,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_n; ++j)
                               {
@@ -3395,7 +3405,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_normal[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p] = tmp;
                               }
                           }
                       }
@@ -3416,7 +3426,7 @@ namespace Portable
                             const int j = tid % co_dimension_size;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_n + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_n + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -3433,7 +3443,7 @@ namespace Portable
                             const int k = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -3474,7 +3484,7 @@ namespace Portable
                               for (int r = 0; r < n_q; ++r)
                                 tmp += shape_values_normal[k * n_q + r] * r_p[r];
 
-                              s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
+                              s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p] = tmp;
                             }
                         }
                       team_member.team_barrier();
@@ -3494,7 +3504,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int q = 0; q < n_q; ++q)
-                              r_p[q] = s_wsp0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
+                              r_p[q] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
 
                             for (int j = 0; j < n_t; ++j)
                               {
@@ -3502,7 +3512,7 @@ namespace Portable
                                 for (int q = 0; q < n_q; ++q)
                                   tmp += shape_values_tangent[j * n_q + q] * r_p[q];
 
-                                s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
+                                s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p] = tmp;
                               }
                           }
                           team_member.team_barrier();
@@ -3521,7 +3531,7 @@ namespace Portable
                             const int k = tid % n_n;
 
                             for (int p = 0; p < n_q; ++p)
-                              r_p[p] = s_wsp1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
+                              r_p[p] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
 
                             for (int i = 0; i < n_t; ++i)
                               {
@@ -3537,8 +3547,6 @@ namespace Portable
                     }
                   }
               }
-
-
 
               // ====================================================
               // PHASE 5: Write the results to the global L vector.
