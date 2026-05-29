@@ -16,12 +16,11 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
+#include <deal.II/matrix_free/evaluation_kernels.h>
 #include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/operators.h>
 #include <deal.II/matrix_free/portable_fe_evaluation.h>
 #include <deal.II/matrix_free/portable_matrix_free.h>
-#include <deal.II/matrix_free/evaluation_kernels.h>
-
 
 #include <deal.II/multigrid/mg_constrained_dofs.h>
 #include <deal.II/multigrid/mg_smoother.h>
@@ -41,8 +40,8 @@
 #include "operators/portable_momentum_operator_rt.h"
 using namespace dealii;
 
-const double factor_mass = 1.;
-const double factor_lapl = 0.;
+const double factor_mass = 800.;
+const double factor_lapl = 1e-6;
 
 template <int dim, typename Number = double>
 class HelmholtzOperator
@@ -100,30 +99,24 @@ private:
     for (unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
       {
         eval.reinit(cell);
-        // eval.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
+        eval.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
         // eval.gather_evaluate(src, EvaluationFlags::values);
-        eval.gather_evaluate(src, EvaluationFlags::gradients);
+        // eval.gather_evaluate(src, EvaluationFlags::gradients);
 
         // std::cout << "Cell FEEvaluation " << cell << ": " << std::endl;
 
         for (const unsigned int q : eval.quadrature_point_indices())
           {
-            // const auto val = eval.get_value(q);
+            const auto val = eval.get_value(q);
 
-            // std::cout << eval.get_value(q) << std::endl;
-            // std::cout << std::endl;
             const auto grad = eval.get_gradient(q);
-            // std::cout << grad << std::endl;
-            eval.submit_gradient(grad, q);
-            // std::cout << eval.get_gradient(q) << std::endl;
 
-
-            // eval.submit_gradient(make_vectorized_array<Number>(factor_lapl) * grad, q);
-            // eval.submit_value(make_vectorized_array<Number>(factor_mass) * val, q);
+            eval.submit_gradient(make_vectorized_array<Number>(factor_lapl) * grad, q);
+            eval.submit_value(make_vectorized_array<Number>(factor_mass) * val, q);
           }
-        // eval.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
+        eval.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
         // eval.integrate_scatter(EvaluationFlags::values, dst);
-        eval.integrate_scatter(EvaluationFlags::gradients, dst);
+        // eval.integrate_scatter(EvaluationFlags::gradients, dst);
       }
     // std::cout << "\n-----------------------------" << std::endl;
   }
@@ -485,7 +478,7 @@ LaplaceProblem<dim, fe_degree>::test()
   // std::cout << std::endl << std::endl;
 
   std::cout << "\n\nTesting Raviart-Thomas operator..." << std::endl;
-  rt_operator.test(vec3, vec1);
+  rt_operator.test(vec3, vec1, factor_mass, factor_lapl);
 
   // std::cout << std::endl << std::endl;
 

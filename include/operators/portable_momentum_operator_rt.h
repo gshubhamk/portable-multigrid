@@ -460,9 +460,9 @@ namespace Portable
                               cell_counter * symmetric_tensor_dim * n_q_points +
                               index * n_q_points + q) = sum * quad_weights[q] / determinant;
 
-                            geometric_tensor_stiffness_host(
-                              cell_counter * symmetric_tensor_dim * n_q_points +
-                              index * n_q_points + q) = sum_stiffness ;
+                            geometric_tensor_stiffness_host(cell_counter * symmetric_tensor_dim *
+                                                              n_q_points +
+                                                            index * n_q_points + q) = sum_stiffness;
 
                             ++index;
                           }
@@ -1048,7 +1048,9 @@ namespace Portable
 
       void
       test(LinearAlgebra::distributed::Vector<Number, MemorySpace::Host>       &dst_host,
-           const LinearAlgebra::distributed::Vector<Number, MemorySpace::Host> &src_host)
+           const LinearAlgebra::distributed::Vector<Number, MemorySpace::Host> &src_host,
+           const Number factor_mass    = Number(1),
+           const Number factor_laplace = Number(1))
       {
         LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> src, dst;
         src.reinit(partitioner);
@@ -1127,7 +1129,20 @@ namespace Portable
             //                                                    1u);
 
 
-            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            // Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            //   shape_values,
+            //   shape_info[0].shape_gradients_collocation,
+            //   geometric_tensor_mass,
+            //   geometric_tensor_stiffness,
+            //   src_device,
+            //   dst_device,
+            //   dof_indices_per_cell,
+            //   n_cells,
+            //   1u,
+            //   1u,
+            //   1u);
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
               shape_values,
               shape_info[0].shape_gradients_collocation,
               geometric_tensor_mass,
@@ -1136,6 +1151,8 @@ namespace Portable
               dst_device,
               dof_indices_per_cell,
               n_cells,
+              factor_mass,
+              factor_laplace,
               1u,
               1u,
               1u);
@@ -1165,7 +1182,20 @@ namespace Portable
             //                                                    1u,
             //                                                    1u);
 
-            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            // Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            //   shape_values,
+            //   shape_info[0].shape_gradients_collocation,
+            //   geometric_tensor_mass,
+            //   geometric_tensor_stiffness,
+            //   src_device,
+            //   dst_device,
+            //   dof_indices_per_cell,
+            //   n_cells,
+            //   1u,
+            //   1u,
+            //   1u);
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
               shape_values,
               shape_info[0].shape_gradients_collocation,
               geometric_tensor_mass,
@@ -1174,6 +1204,8 @@ namespace Portable
               dst_device,
               dof_indices_per_cell,
               n_cells,
+              factor_mass,
+              factor_laplace,
               1u,
               1u,
               1u);
@@ -1198,7 +1230,20 @@ namespace Portable
             //                                                    1u);
 
 
-            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            // Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            //   shape_values,
+            //   shape_info[0].shape_gradients_collocation,
+            //   geometric_tensor_mass,
+            //   geometric_tensor_stiffness,
+            //   src_device,
+            //   dst_device,
+            //   dof_indices_per_cell,
+            //   n_cells,
+            //   1u,
+            //   1u,
+            //   1u);
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
               shape_values,
               shape_info[0].shape_gradients_collocation,
               geometric_tensor_mass,
@@ -1207,6 +1252,8 @@ namespace Portable
               dst_device,
               dof_indices_per_cell,
               n_cells,
+              factor_mass,
+              factor_laplace,
               1u,
               1u,
               1u);
@@ -1231,7 +1278,20 @@ namespace Portable
             //                                                    1u);
 
 
-            Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            // Portable::RT::stiffness_operator<dim, n_t, n_q, Number>(
+            //   shape_values,
+            //   shape_info[0].shape_gradients_collocation,
+            //   geometric_tensor_mass,
+            //   geometric_tensor_stiffness,
+            //   src_device,
+            //   dst_device,
+            //   dof_indices_per_cell,
+            //   n_cells,
+            //   1u,
+            //   1u,
+            //   1u);
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
               shape_values,
               shape_info[0].shape_gradients_collocation,
               geometric_tensor_mass,
@@ -1240,6 +1300,8 @@ namespace Portable
               dst_device,
               dof_indices_per_cell,
               n_cells,
+              factor_mass,
+              factor_laplace,
               1u,
               1u,
               1u);
