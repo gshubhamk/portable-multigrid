@@ -381,15 +381,22 @@ namespace Portable
               {
                 basis[i].value(0., val_and_der);
                 interpolate_quad_to_boundary_host(0, i, 0) = val_and_der[0];
-                interpolate_quad_to_boundary_host(0, i, 1) = val_and_der[1];
+                interpolate_quad_to_boundary_host(1, i, 0) = val_and_der[1];
 
                 basis[i].value(1., val_and_der);
-                interpolate_quad_to_boundary_host(1, i, 0) = val_and_der[0];
+                interpolate_quad_to_boundary_host(0, i, 1) = val_and_der[0];
                 interpolate_quad_to_boundary_host(1, i, 1) = val_and_der[1];
               }
 
             Kokkos::deep_copy(interpolate_quad_to_boundary, interpolate_quad_to_boundary_host);
             Kokkos::fence();
+
+            std::cout << basis.size() << " == " << fe.degree << std::endl;
+            for (unsigned int i = 0; i < 2; ++i)
+              for (unsigned int j = 0; j < basis.size(); ++j)
+                for (int k = 0; k < 2; ++k)
+                  std::cout << interpolate_quad_to_boundary_host(i, j, k) << "  ";
+            std::cout << std::endl;
           }
 
           quad_values = Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
