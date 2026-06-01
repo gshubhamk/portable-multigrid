@@ -391,12 +391,12 @@ namespace Portable
             Kokkos::deep_copy(interpolate_quad_to_boundary, interpolate_quad_to_boundary_host);
             Kokkos::fence();
 
-            std::cout << basis.size() << " == " << fe.degree << std::endl;
-            for (unsigned int i = 0; i < 2; ++i)
-              for (unsigned int j = 0; j < basis.size(); ++j)
-                for (int k = 0; k < 2; ++k)
-                  std::cout << interpolate_quad_to_boundary_host(i, j, k) << "  ";
-            std::cout << std::endl;
+            // std::cout << basis.size() << " == " << fe.degree << std::endl;
+            // for (unsigned int i = 0; i < 2; ++i)
+            //   for (unsigned int j = 0; j < basis.size(); ++j)
+            //     for (int k = 0; k < 2; ++k)
+            //       std::cout << interpolate_quad_to_boundary_host(i, j, k) << "  ";
+            // std::cout << std::endl;
           }
 
           quad_values = Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
@@ -407,6 +407,10 @@ namespace Portable
         }
 
         compute_geometric_tensors(mapping, quadrature, dof_handler, n_cells);
+
+        // Kokkos::Array<DeviceVector<Number>, 2> shape_values;
+        shape_values[0] = shape_info[0].shape_values;
+        shape_values[1] = shape_info[1].shape_values;
       }
 
       void
@@ -451,7 +455,7 @@ namespace Portable
         // build tensor product quadrature
         Quadrature<dim> quadrature(quadrature_1d);
 
-        std::vector<Number> quad_weights = quadrature.get_weights();
+        const auto &quad_weights = quadrature.get_weights();
 
         const FiniteElement<dim> &fe = dof_handler.get_fe();
 
@@ -652,7 +656,7 @@ namespace Portable
                                   temp2.data() + i0 * n_q + i1,
                                   out + i0 * n_q + i1);
                       }
-                    std::cout << std::endl;
+                    // std::cout << std::endl;
                   }
 
                 for (unsigned int i1 = 0; i1 < (dim == 3 ? n_q : 1); ++i1)
@@ -1089,6 +1093,216 @@ namespace Portable
       }
 
 
+      void
+      initialize_dof_vector(
+        LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
+      {
+        vec.reinit(this->partitioner);
+      }
+      void
+      test_cell_operator(
+        LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+        const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+        const Number factor_mass    = Number(1),
+        const Number factor_laplace = Number(1)) const
+      {
+        constexpr bool is_serial =
+          std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
+
+        unsigned int n_cells_per_batch = numbers::invalid_unsigned_int;
+        unsigned int n_blocks          = numbers::invalid_unsigned_int;
+        unsigned int threads_per_block = numbers::invalid_unsigned_int;
+
+
+        if (is_serial)
+          {
+            n_cells_per_batch = 1u;
+            n_blocks          = 1u;
+            threads_per_block = 1u;
+          }
+
+        src.update_ghost_values();
+        DeviceVector<Number> src_device(src.get_values(), src.locally_owned_size());
+        DeviceVector<Number> dst_device(dst.get_values(), dst.locally_owned_size());
+
+
+
+        if (shape_info[0].fe_degree == 2)
+          {
+            constexpr int n_t = 2, n_q = 3;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+        if (shape_info[0].fe_degree == 2)
+          {
+            constexpr int n_t = 2, n_q = 3;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+        if (shape_info[0].fe_degree == 3)
+          {
+            constexpr int n_t = 3, n_q = 4;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+        if (shape_info[0].fe_degree == 4)
+          {
+            constexpr int n_t = 4, n_q = 5;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+
+        if (shape_info[0].fe_degree == 5)
+          {
+            constexpr int n_t = 5, n_q = 6;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+
+        if (shape_info[0].fe_degree == 6)
+          {
+            constexpr int n_t = 6, n_q = 7;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+
+        if (shape_info[0].fe_degree == 7)
+          {
+            constexpr int n_t = 7, n_q = 8;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+
+
+        if (shape_info[0].fe_degree == 8)
+          {
+            constexpr int n_t = 8, n_q = 9;
+
+
+            Portable::RT::helmholtz_operator<dim, n_t, n_q, Number>(
+              shape_values,
+              shape_info[0].shape_gradients_collocation,
+              geometric_tensor_mass,
+              geometric_tensor_stiffness,
+              src_device,
+              dst_device,
+              dof_indices_per_cell,
+              n_cells,
+              factor_mass,
+              factor_laplace,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+
+        dst.compress(VectorOperation::add);
+        src.zero_out_ghost_values();
+      }
 
       void
       test(LinearAlgebra::distributed::Vector<Number, MemorySpace::Host>       &dst_host,
@@ -1100,8 +1314,8 @@ namespace Portable
         src.reinit(partitioner);
         dst.reinit(partitioner);
 
-        std::cout << src.size() << " " << dst.size() << std::endl;
-        std::cout << src_host.size() << " " << dst_host.size() << std::endl;
+        // std::cout << src.size() << " " << dst.size() << std::endl;
+        // std::cout << src_host.size() << " " << dst_host.size() << std::endl;
 
         LinearAlgebra::ReadWriteVector<Number> rw(src_host.locally_owned_elements());
         rw.import_elements(src_host, VectorOperation::insert);
@@ -1457,6 +1671,7 @@ namespace Portable
         dst_host.import_elements(rw, VectorOperation::insert);
       }
 
+
     private:
       enum class CellOperation
       {
@@ -1495,6 +1710,9 @@ namespace Portable
       // std::array<std::vector<std::array<Number, 2>>, 2> interpolate_quad_to_boundary;
 
       Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> interpolate_quad_to_boundary;
+
+      Kokkos::Array<DeviceVector<Number>, 2> shape_values;
+
 
       unsigned int n_cells;
     };

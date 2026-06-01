@@ -60,8 +60,12 @@ namespace Portable
 
       const int nelmt = n_cells;
 
-      const size_t shmemPerBlock =
-        Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+      // const size_t shmemPerBlock =
+      //   Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+
+
+      int shmemPerBlock = 10800; // total shared memory used per block (KB)
+
 
       const int nelmtPerBatch = (n_cells_per_batch == numbers::invalid_unsigned_int) ?
                                   (shmemPerBlock / (5 * n_q_total) / sizeof(Number)) :
@@ -1005,8 +1009,10 @@ namespace Portable
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
       const int     nelmt                = n_cells;
 
-      const size_t shmemPerBlock =
-        Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+      // const size_t shmemPerBlock =
+      //   Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+
+      int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
       const int nelmtPerBatch =
         (n_cells_per_batch == numbers::invalid_unsigned_int) ?
@@ -2304,8 +2310,10 @@ namespace Portable
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
       const int     nelmt                = n_cells;
 
-      const size_t shmemPerBlock =
-        Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+      // const size_t shmemPerBlock =
+      //   Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+
+      int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
       const int nelmtPerBatch =
         (n_cells_per_batch == numbers::invalid_unsigned_int) ?
@@ -3636,8 +3644,10 @@ namespace Portable
       constexpr int n_dofs_per_component = n_n * Utilities::pow(n_t, dim - 1);
       const int     nelmt                = n_cells;
 
-      const size_t shmemPerBlock =
-        Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+      // const size_t shmemPerBlock =
+      //   Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+
+      int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
       const int nelmtPerBatch =
         (n_cells_per_batch == numbers::invalid_unsigned_int) ?
@@ -4998,8 +5008,10 @@ namespace Portable
       const int nelmt = n_cells;
 
 
-      const size_t shmemPerBlock =
-        Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+      // const size_t shmemPerBlock =
+      //   Kokkos::TeamPolicy<>::scratch_size_max(0); // maximum shared memory size per thread block
+
+      int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
 
       const int nelmtPerBatch =
