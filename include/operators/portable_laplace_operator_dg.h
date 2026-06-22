@@ -1,0 +1,608 @@
+#ifndef portable_laplace_operator_dg_h
+#define portable_laplace_operator_dg_h
+
+#include <deal.II/dofs/dof_handler.h>
+
+#include <deal.II/fe/mapping_q1.h>
+
+#include <memory>
+
+#include "base/portable_laplace_operator_base.h"
+#include "kernels/portable_local_laplace_operator.h"
+#include "operators/portable_laplace_operator_quad.h"
+#include "kernels/laplace_dg_kokkos_kernels.h"
+
+
+DEAL_II_NAMESPACE_OPEN
+
+namespace Portable
+{
+  template <int dim, int fe_degree, typename Number>
+  class LaplaceOperatorDG : public LaplaceOperatorBase<dim, Number>
+  {
+  public:
+    LaplaceOperatorDG() = default;
+
+    void
+    reinit(const Mapping<dim>              &mapping,
+           const Quadrature<1>             &quadrature_1d,
+           const DoFHandler<dim>           &dof_handler,
+           const AffineConstraints<Number> &constraints,
+           bool                             overlap_communication_computation);
+
+    void
+    vmult(
+      LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+      const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const override;
+
+    void
+    vmult_dummy(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+                const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+                const bool ghost_exchange_on,
+                const bool computation_on) const override;
+
+
+    void
+    Tvmult(
+      LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+      const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const override;
+
+    void
+    initialize_dof_vector(
+      LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const override;
+
+    void
+    compute_diagonal() override;
+
+    void
+    setup_dof_indices_per_color();
+
+    std::shared_ptr<
+      DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
+    get_matrix_diagonal_inverse() const override;
+
+    types::global_dof_index
+    m() const override;
+
+    types::global_dof_index
+    n() const override;
+
+    Number
+    el(const types::global_dof_index row, const types::global_dof_index col) const override;
+
+    const MatrixFree<dim, Number> &
+    get_matrix_free() const override;
+
+    const std::shared_ptr<const Utilities::MPI::Partitioner> &
+    get_vector_partitioner() const override;
+
+  private:
+    using TeamHandle =
+      Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>::member_type;
+    using ViewValues =
+      Kokkos::View<Number *,
+                   MemorySpace::Default::kokkos_space::execution_space::scratch_memory_space,
+                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    using ViewGradients =
+      Kokkos::View<Number **,
+                   MemorySpace::Default::kokkos_space::execution_space::scratch_memory_space,
+                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+    void
+    cell_loop(const LocalLaplaceOperator<dim, fe_degree, Number>                     &cell_operator,
+              const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+              LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst) const;
+
+    void
+    cell_loop_dummy(const LocalLaplaceOperator<dim, fe_degree, Number> &cell_operator,
+                    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+                    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+                    const bool ghost_exchange_on,
+                    const bool computation_on) const;
+
+    static constexpr unsigned int n_local_dofs = Utilities::pow(fe_degree + 1, dim);
+
+    MatrixFree<dim, Number> matrix_free;
+
+    ObserverPointer<const AffineConstraints<Number>> constraints;
+
+    static const unsigned int n_q_points = Utilities::pow(fe_degree + 1, dim);
+
+    std::shared_ptr<
+      DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
+      inverse_diagonal_entries;
+
+    std::vector<Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>>
+      dof_indices_per_color;
+
+    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> quad_values;
+
+    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> interpolate_quad_to_boundary;
+  };
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::reinit(const Mapping<dim>              &mapping,
+                                                    const Quadrature<1>             &quadrature_1d,
+                                                    const DoFHandler<dim>           &dof_handler,
+                                                    const AffineConstraints<Number> &constraints,
+                                                    bool overlap_communication_computation)
+  {
+    typename MatrixFree<dim, Number>::AdditionalData additional_data;
+
+    this->constraints = &constraints;
+
+    additional_data.mapping_update_flags =
+      update_gradients | update_JxW_values | update_quadrature_points;
+    additional_data.overlap_communication_computation = overlap_communication_computation;
+
+    matrix_free.reinit(mapping, dof_handler, constraints, quadrature_1d, additional_data);
+
+    setup_dof_indices_per_color();
+
+    // We need to compute the values of the shape functions at the quadrature points on the boundary
+    // for the face integrals
+    {
+      std::vector<Polynomials::Polynomial<double>> basis =
+        Polynomials::generate_complete_Lagrange_basis(quadrature_1d.get_points());
+
+      interpolate_quad_to_boundary = Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("interpolate_quad_to_boundary", Kokkos::WithoutInitializing),
+        2,
+        basis.size(),
+        2);
+
+      auto interpolate_quad_to_boundary_host =
+        Kokkos::create_mirror_view(interpolate_quad_to_boundary);
+
+      std::vector<double> val_and_der(2);
+
+      for (unsigned int i = 0; i < basis.size(); ++i)
+        {
+          basis[i].value(0., val_and_der);
+          interpolate_quad_to_boundary_host(0, i, 0) = val_and_der[0];
+          interpolate_quad_to_boundary_host(1, i, 0) = val_and_der[1];
+
+          basis[i].value(1., val_and_der);
+          interpolate_quad_to_boundary_host(0, i, 1) = val_and_der[0];
+          interpolate_quad_to_boundary_host(1, i, 1) = val_and_der[1];
+        }
+
+      Kokkos::deep_copy(interpolate_quad_to_boundary, interpolate_quad_to_boundary_host);
+      Kokkos::fence();
+    }
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::vmult(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
+  {
+    dst = 0.;
+
+    LocalLaplaceOperator<dim, fe_degree, Number> cell_operator;
+
+    this->cell_loop(cell_operator, src, dst);
+
+    matrix_free.copy_constrained_values(src, dst);
+  }
+
+
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::cell_loop(
+    const LocalLaplaceOperator<dim, fe_degree, Number>                     &cell_operator,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst) const
+
+  {
+    MemorySpace::Default::kokkos_space::execution_space exec;
+    using Functor = LocalLaplaceOperator<dim, fe_degree, Number>;
+
+    const auto &colored_graph = matrix_free.get_colored_graph();
+
+    const unsigned int n_colors = colored_graph.size();
+
+    if (matrix_free.use_overlap_communication_computation())
+      {
+        // helper to process one color
+        auto do_color = [&](const unsigned int color)
+          {
+            using TeamPolicy =
+              Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
+
+
+            const auto &gpu_data = matrix_free.get_data(color, 0);
+
+            auto team_policy = TeamPolicy(exec, gpu_data.n_cells, Kokkos::AUTO);
+
+            Portable::internal::ApplyCellKernel<dim, Number, Functor> apply_kernel(
+              cell_operator, gpu_data, this->dof_indices_per_color[color], src, dst);
+
+            Kokkos::parallel_for("dealii::MatrixFree::distributed_cell_loop color " +
+                                   std::to_string(color),
+                                 team_policy,
+                                 apply_kernel);
+          };
+
+        src.update_ghost_values_start(0);
+
+        // In parallel, it's possible that some processors do not own any
+        // cells.
+        if (colored_graph.size() > 0 && matrix_free.get_data(0, 0).n_cells > 0)
+          do_color(0);
+
+        src.update_ghost_values_finish();
+
+        // In serial this color does not exist because there are no ghost
+        // cells
+        if (colored_graph.size() > 1 && matrix_free.get_data(1, 0).n_cells > 0)
+          {
+            do_color(1);
+
+            // We need a synchronization point because we don't want
+            // device-aware MPI to start the MPI communication until the
+            // kernel is done.
+            Kokkos::fence();
+          }
+
+        dst.compress_start(0, VectorOperation::add);
+        // When the mesh is coarse it is possible that some processors do
+        // not own any cells
+        if (colored_graph.size() > 2 && matrix_free.get_data(2, 0).n_cells > 0)
+          do_color(2);
+        dst.compress_finish(VectorOperation::add);
+      }
+    else
+      {
+        src.update_ghost_values();
+
+        // Execute the loop on the cells
+        for (unsigned int color = 0; color < n_colors; ++color)
+          {
+            const auto &gpu_data = matrix_free.get_data(color, 0);
+            if (gpu_data.n_cells > 0)
+              {
+                using TeamPolicy =
+                  Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
+
+                auto team_policy = TeamPolicy(exec, gpu_data.n_cells, Kokkos::AUTO);
+
+                internal::ApplyCellKernel<dim, Number, Functor> apply_kernel(
+                  cell_operator, gpu_data, this->dof_indices_per_color[color], src, dst);
+
+                Kokkos::parallel_for("dealii::MatrixFree::distributed_cell_loop color " +
+                                       std::to_string(color),
+                                     team_policy,
+                                     apply_kernel);
+              }
+          }
+        dst.compress(VectorOperation::add);
+      }
+
+    src.zero_out_ghost_values();
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::vmult_dummy(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+    const bool                                                              ghost_exchange_on,
+    const bool                                                              computation_on) const
+  {
+    dst = 0.;
+
+    LocalLaplaceOperator<dim, fe_degree, Number> cell_operator;
+
+    this->cell_loop_dummy(cell_operator, src, dst, ghost_exchange_on, computation_on);
+
+    matrix_free.copy_constrained_values(src, dst);
+  }
+
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::cell_loop_dummy(
+    const LocalLaplaceOperator<dim, fe_degree, Number>                     &cell_operator,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const bool                                                              ghost_exchange_on,
+    const bool                                                              computation_on) const
+
+  {
+    MemorySpace::Default::kokkos_space::execution_space exec;
+    using Functor = LocalLaplaceOperator<dim, fe_degree, Number>;
+
+    const auto &colored_graph = matrix_free.get_colored_graph();
+
+    const unsigned int n_colors = colored_graph.size();
+
+    if (matrix_free.use_overlap_communication_computation())
+      {
+        // helper to process one color
+        auto do_color = [&](const unsigned int color)
+          {
+            using TeamPolicy =
+              Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
+
+
+            const auto &gpu_data = matrix_free.get_data(color, 0);
+
+            auto team_policy = TeamPolicy(exec, gpu_data.n_cells, Kokkos::AUTO);
+
+            internal::ApplyCellKernel<dim, Number, Functor> apply_kernel(
+              cell_operator, gpu_data, this->dof_indices_per_color[color], src, dst);
+
+            Kokkos::parallel_for("dealii::MatrixFree::distributed_cell_loop color " +
+                                   std::to_string(color),
+                                 team_policy,
+                                 apply_kernel);
+          };
+
+        if (ghost_exchange_on)
+          src.update_ghost_values_start(0);
+
+        // In parallel, it's possible that some processors do not own any
+        // cells.
+        if (colored_graph.size() > 0 && matrix_free.get_data(0, 0).n_cells > 0)
+          if (computation_on)
+            do_color(0);
+
+        if (ghost_exchange_on)
+          src.update_ghost_values_finish();
+
+        // In serial this color does not exist because there are no ghost
+        // cells
+        if (colored_graph.size() > 1 && matrix_free.get_data(1, 0).n_cells > 0)
+          {
+            if (computation_on)
+              do_color(1);
+
+            // We need a synchronization point because we don't want
+            // device-aware MPI to start the MPI communication until the
+            // kernel is done.
+            Kokkos::fence();
+          }
+        if (ghost_exchange_on)
+          dst.compress_start(0, VectorOperation::add);
+
+        // When the mesh is coarse it is possible that some processors do
+        // not own any cells
+        if (colored_graph.size() > 2 && matrix_free.get_data(2, 0).n_cells > 0)
+          if (computation_on)
+
+            do_color(2);
+
+        if (ghost_exchange_on)
+          dst.compress_finish(VectorOperation::add);
+      }
+    else
+      {
+        if (ghost_exchange_on)
+          src.update_ghost_values();
+
+        // Execute the loop on the cells
+        for (unsigned int color = 0; color < n_colors; ++color)
+          {
+            if (computation_on)
+              {
+                const auto &gpu_data = matrix_free.get_data(color, 0);
+                if (gpu_data.n_cells > 0)
+                  {
+                    using TeamPolicy =
+                      Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
+
+                    auto team_policy = TeamPolicy(exec, gpu_data.n_cells, Kokkos::AUTO);
+
+
+                    internal::ApplyCellKernel<dim, Number, Functor> apply_kernel(
+                      cell_operator, gpu_data, this->dof_indices_per_color[color], src, dst);
+
+                    Kokkos::parallel_for("dealii::MatrixFree::distributed_cell_loop color " +
+                                           std::to_string(color),
+                                         team_policy,
+                                         apply_kernel);
+                  }
+              }
+          }
+        if (ghost_exchange_on)
+          dst.compress(VectorOperation::add);
+      }
+
+    if (ghost_exchange_on)
+      src.zero_out_ghost_values();
+  }
+
+
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::setup_dof_indices_per_color()
+  {
+    dealii::MemorySpace::Default::kokkos_space::execution_space exec_space;
+    const auto        &colored_graph = matrix_free.get_colored_graph();
+    const unsigned int n_colors      = colored_graph.size();
+
+    const auto &dof_handler = matrix_free.get_dof_handler();
+
+    std::vector<unsigned int> lex_numbering(n_local_dofs);
+
+    {
+      const Quadrature<1> dummy_quadrature(std::vector<Point<1>>(1, Point<1>()));
+      dealii::internal::MatrixFreeFunctions::ShapeInfo<double> shape_info;
+
+
+      shape_info.reinit(dummy_quadrature, dof_handler.get_fe(), 0);
+      lex_numbering = shape_info.lexicographic_numbering;
+    }
+
+    this->dof_indices_per_color.clear();
+    this->dof_indices_per_color.resize(n_colors);
+
+    std::vector<types::global_dof_index> local_dof_indices(n_local_dofs);
+    std::vector<types::global_dof_index> subdomain_local_dof_indices(n_local_dofs);
+
+    const auto &partitioner = matrix_free.get_vector_partitioner();
+
+    for (unsigned int color = 0; color < n_colors; ++color)
+      {
+        if (colored_graph[color].size() > 0)
+          {
+            const auto &mf_data = matrix_free.get_data(color);
+
+            const auto &graph = colored_graph[color];
+
+            this->dof_indices_per_color[color] =
+              Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>(
+                Kokkos::view_alloc("dof_indices_" + std::to_string(color),
+                                   Kokkos::WithoutInitializing),
+                n_local_dofs,
+                mf_data.n_cells);
+
+            auto dof_indices_host = Kokkos::create_mirror_view(this->dof_indices_per_color[color]);
+
+            for (unsigned int cell_id = 0; cell_id < mf_data.n_cells; ++cell_id)
+              {
+                auto triacell = graph[cell_id];
+
+                typename DoFHandler<dim>::cell_iterator cell =
+                  triacell->as_dof_handler_iterator(dof_handler);
+
+                cell->get_dof_indices(local_dof_indices);
+
+                triacell->get_dof_indices(subdomain_local_dof_indices);
+
+                if (partitioner)
+                  for (auto &index : local_dof_indices)
+                    index = partitioner->global_to_local(index);
+
+                for (unsigned int i = 0; i < n_local_dofs; ++i)
+                  {
+                    const auto global_dof          = local_dof_indices[lex_numbering[i]];
+                    const auto subdomain_local_dof = subdomain_local_dof_indices[lex_numbering[i]];
+
+                    if (constraints->is_constrained(subdomain_local_dof))
+                      dof_indices_host(i, cell_id) = numbers::invalid_unsigned_int;
+                    else
+                      dof_indices_host(i, cell_id) = global_dof;
+                  }
+              }
+
+            Kokkos::deep_copy(exec_space, this->dof_indices_per_color[color], dof_indices_host);
+            Kokkos::fence();
+          }
+      }
+  }
+
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::Tvmult(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
+  {
+    AssertDimension(dst.size(), src.size());
+    Assert(dst.get_partitioner() == matrix_free.get_vector_partitioner(),
+           ExcMessage("Vector is not correctly initialized."));
+    Assert(src.get_partitioner() == matrix_free.get_vector_partitioner(),
+           ExcMessage("Vector is not correctly initialized."));
+
+    vmult(dst, src);
+  }
+
+
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::initialize_dof_vector(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
+  {
+    matrix_free.initialize_dof_vector(vec);
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  const MatrixFree<dim, Number> &
+  LaplaceOperatorDG<dim, fe_degree, Number>::get_matrix_free() const
+  {
+    return matrix_free;
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, Number>::compute_diagonal()
+  {
+    this->inverse_diagonal_entries.reset(
+      new DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>());
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &inverse_diagonal =
+      inverse_diagonal_entries->get_vector();
+    initialize_dof_vector(inverse_diagonal);
+
+    internal::LaplaceOperatorQuad<dim, fe_degree, Number> operator_quad;
+
+    MatrixFreeTools::compute_diagonal<dim, fe_degree, fe_degree + 1, 1, Number>(
+      matrix_free,
+      inverse_diagonal,
+      operator_quad,
+      EvaluationFlags::gradients,
+      EvaluationFlags::gradients);
+
+    Number *raw_diagonal = inverse_diagonal.get_values();
+
+    Kokkos::parallel_for(
+      inverse_diagonal.locally_owned_size(), KOKKOS_LAMBDA(int i) {
+        Assert(raw_diagonal[i] > 0.,
+               ExcMessage("No diagonal entry in a positive definite operator "
+                          "should be zero"));
+        raw_diagonal[i] = 1. / raw_diagonal[i];
+      });
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  std::shared_ptr<DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
+  LaplaceOperatorDG<dim, fe_degree, Number>::get_matrix_diagonal_inverse() const
+  {
+    return inverse_diagonal_entries;
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  types::global_dof_index
+  LaplaceOperatorDG<dim, fe_degree, Number>::m() const
+  {
+    return matrix_free.get_vector_partitioner()->size();
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  types::global_dof_index
+  LaplaceOperatorDG<dim, fe_degree, Number>::n() const
+  {
+    return matrix_free.get_vector_partitioner()->size();
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  Number
+  LaplaceOperatorDG<dim, fe_degree, Number>::el(const types::global_dof_index row,
+                                                const types::global_dof_index col) const
+  {
+    (void)col;
+    Assert(row == col, ExcNotImplemented());
+    Assert(inverse_diagonal_entries.get() != nullptr && inverse_diagonal_entries->m() > 0,
+           ExcNotInitialized());
+
+    return 1.0 / (*inverse_diagonal_entries)(row, row);
+  }
+
+  template <int dim, int fe_degree, typename Number>
+  const std::shared_ptr<const Utilities::MPI::Partitioner> &
+  LaplaceOperatorDG<dim, fe_degree, Number>::get_vector_partitioner() const
+  {
+    return matrix_free.get_vector_partitioner();
+  }
+
+} // namespace Portable
+
+DEAL_II_NAMESPACE_CLOSE
+
+#endif
