@@ -76,7 +76,8 @@ namespace BK3
         const int ssize = nm * nq + // shape values
                           nq * nq + // co-shape gradients
                           n_scratch_arrays * nelmtPerBatch *
-                            nq_total; // working scratch arrays: s_wsp0, s_wsp1, rqr, rqs, rqt
+                            nq_total; // working scratch arrays: scratch_values, scratch_grads_0,
+                                      // scratch_grads_1, scratch_grads_2
 
 
         const int shmem_size = ssize * sizeof(Number);
