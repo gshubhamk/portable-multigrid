@@ -33,7 +33,7 @@
 #include <memory>
 
 #include "multigrid/portable_geometric_transfer.h"
-#include "multigrid/portable_polynomial_tranfer.h"
+#include "multigrid/portable_polynomial_transfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
 #include "operators/portable_laplace_operator_bk3.h"
 #include "portable_multigrid_solver.h"
