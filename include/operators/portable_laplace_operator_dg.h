@@ -8,16 +8,16 @@
 #include <memory>
 
 #include "base/portable_laplace_operator_base.h"
+#include "kernels/laplace_dg_kokkos_kernels.h"
 #include "kernels/portable_local_laplace_operator.h"
 #include "operators/portable_laplace_operator_quad.h"
-#include "kernels/laplace_dg_kokkos_kernels.h"
 
 
 DEAL_II_NAMESPACE_OPEN
 
 namespace Portable
 {
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   class LaplaceOperatorDG : public LaplaceOperatorBase<dim, Number>
   {
   public:
@@ -25,7 +25,6 @@ namespace Portable
 
     void
     reinit(const Mapping<dim>              &mapping,
-           const Quadrature<1>             &quadrature_1d,
            const DoFHandler<dim>           &dof_handler,
            const AffineConstraints<Number> &constraints,
            bool                             overlap_communication_computation);
@@ -106,7 +105,7 @@ namespace Portable
 
     ObserverPointer<const AffineConstraints<Number>> constraints;
 
-    static const unsigned int n_q_points = Utilities::pow(fe_degree + 1, dim);
+    static const unsigned int n_q_points = Utilities::pow(n_q_points_1d, dim);
 
     std::shared_ptr<
       DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
@@ -115,22 +114,25 @@ namespace Portable
     std::vector<Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>>
       dof_indices_per_color;
 
-    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> quad_values;
+    Kokkos::View<Number **, MemorySpace::Default::kokkos_space>  quad_values;
+    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> face_values_at_quads;
 
     Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> interpolate_quad_to_boundary;
   };
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::reinit(const Mapping<dim>              &mapping,
-                                                    const Quadrature<1>             &quadrature_1d,
-                                                    const DoFHandler<dim>           &dof_handler,
-                                                    const AffineConstraints<Number> &constraints,
-                                                    bool overlap_communication_computation)
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::reinit(
+    const Mapping<dim>              &mapping,
+    const DoFHandler<dim>           &dof_handler,
+    const AffineConstraints<Number> &constraints,
+    bool                             overlap_communication_computation)
   {
     typename MatrixFree<dim, Number>::AdditionalData additional_data;
 
     this->constraints = &constraints;
+
+    QGauss<1> quadrature_1d(n_q_points_1d);
 
     additional_data.mapping_update_flags =
       update_gradients | update_JxW_values | update_quadrature_points;
@@ -170,12 +172,23 @@ namespace Portable
 
       Kokkos::deep_copy(interpolate_quad_to_boundary, interpolate_quad_to_boundary_host);
       Kokkos::fence();
+
+      unsigned int n_cells = 0;
+      for (unsigned int color = 0; color < dof_indices_per_color.size(); ++color)
+        n_cells += matrix_free.get_data(color, 0).n_cells();
+
+      quad_values = Kokkos::View<Number **, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("quad_values", Kokkos::WithoutInitializing),
+        Utilities::pow(quadrature_1d.size(), dim - 1), // number of quadrature points on a face
+        2 * dim,                                       // number of faces per cell
+        n_cells                                        // number of cells
+      );
     }
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::vmult(
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult(
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
   {
@@ -190,9 +203,9 @@ namespace Portable
 
 
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::cell_loop(
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::cell_loop(
     const LocalLaplaceOperator<dim, fe_degree, Number>                     &cell_operator,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst) const
@@ -285,9 +298,9 @@ namespace Portable
     src.zero_out_ghost_values();
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::vmult_dummy(
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult_dummy(
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
     const bool                                                              ghost_exchange_on,
@@ -295,7 +308,7 @@ namespace Portable
   {
     dst = 0.;
 
-    LocalLaplaceOperator<dim, fe_degree, Number> cell_operator;
+    LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number> cell_operator;
 
     this->cell_loop_dummy(cell_operator, src, dst, ghost_exchange_on, computation_on);
 
@@ -303,10 +316,10 @@ namespace Portable
   }
 
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::cell_loop_dummy(
-    const LocalLaplaceOperator<dim, fe_degree, Number>                     &cell_operator,
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::cell_loop_dummy(
+    const LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number>      &cell_operator,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
     const bool                                                              ghost_exchange_on,
@@ -314,7 +327,7 @@ namespace Portable
 
   {
     MemorySpace::Default::kokkos_space::execution_space exec;
-    using Functor = LocalLaplaceOperator<dim, fe_degree, Number>;
+    using Functor = LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number>;
 
     const auto &colored_graph = matrix_free.get_colored_graph();
 
@@ -417,10 +430,9 @@ namespace Portable
   }
 
 
-
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::setup_dof_indices_per_color()
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::setup_dof_indices_per_color()
   {
     dealii::MemorySpace::Default::kokkos_space::execution_space exec_space;
     const auto        &colored_graph = matrix_free.get_colored_graph();
@@ -498,9 +510,9 @@ namespace Portable
   }
 
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::Tvmult(
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::Tvmult(
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
   {
@@ -514,25 +526,24 @@ namespace Portable
   }
 
 
-
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::initialize_dof_vector(
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::initialize_dof_vector(
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
   {
     matrix_free.initialize_dof_vector(vec);
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   const MatrixFree<dim, Number> &
-  LaplaceOperatorDG<dim, fe_degree, Number>::get_matrix_free() const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::get_matrix_free() const
   {
     return matrix_free;
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
-  LaplaceOperatorDG<dim, fe_degree, Number>::compute_diagonal()
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_diagonal()
   {
     this->inverse_diagonal_entries.reset(
       new DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>());
@@ -560,31 +571,32 @@ namespace Portable
       });
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   std::shared_ptr<DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
-  LaplaceOperatorDG<dim, fe_degree, Number>::get_matrix_diagonal_inverse() const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::get_matrix_diagonal_inverse() const
   {
     return inverse_diagonal_entries;
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   types::global_dof_index
-  LaplaceOperatorDG<dim, fe_degree, Number>::m() const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::m() const
   {
     return matrix_free.get_vector_partitioner()->size();
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   types::global_dof_index
-  LaplaceOperatorDG<dim, fe_degree, Number>::n() const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::n() const
   {
     return matrix_free.get_vector_partitioner()->size();
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   Number
-  LaplaceOperatorDG<dim, fe_degree, Number>::el(const types::global_dof_index row,
-                                                const types::global_dof_index col) const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::el(
+    const types::global_dof_index row,
+    const types::global_dof_index col) const
   {
     (void)col;
     Assert(row == col, ExcNotImplemented());
@@ -594,9 +606,9 @@ namespace Portable
     return 1.0 / (*inverse_diagonal_entries)(row, row);
   }
 
-  template <int dim, int fe_degree, typename Number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   const std::shared_ptr<const Utilities::MPI::Partitioner> &
-  LaplaceOperatorDG<dim, fe_degree, Number>::get_vector_partitioner() const
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::get_vector_partitioner() const
   {
     return matrix_free.get_vector_partitioner();
   }

@@ -3860,8 +3860,11 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int p = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
+
+                            std::cout << "tid: " << tid % co_dimension_size << ", p: " << p
+                                      << ", k: " << k << std::endl;
 
                             for (int j = 0; j < n_t; ++j)
                               r_p[j] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
@@ -3939,8 +3942,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int j = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_n;
+                            const int j = tid % n_n;
 
                             for (int i = 0; i < n_t; ++i)
                               r_p[i] = s_uq_1[e * n_t * n_n * n_t + k * n_t * n_n + j * n_t + i];
@@ -3985,8 +3988,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int p = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int j = 0; j < n_n; ++j)
                               r_p[j] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
@@ -4015,8 +4018,8 @@ namespace Portable
                           {
                             const int e = tid / co_dimension_size;
 
-                            const int p = (tid % co_dimension_size) / n_q;
-                            const int q = tid % n_q;
+                            const int q = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int k = 0; k < n_t; ++k)
                               r_p[k] =
@@ -4049,8 +4052,8 @@ namespace Portable
                           {
                             const int e = tid / co_dimension_size;
 
-                            const int j = (tid % co_dimension_size) / n_n;
-                            const int k = tid % n_n;
+                            const int k = (tid % co_dimension_size) / n_t;
+                            const int j = tid % n_t;
 
                             for (int i = 0; i < n_t; ++i)
                               r_p[i] = s_uq_2[e * n_t * n_t * n_n + k * n_t * n_t + j * n_t + i];
@@ -4076,8 +4079,8 @@ namespace Portable
                           {
                             const int e = tid / co_dimension_size;
 
-                            const int p = (tid % co_dimension_size) / n_n;
-                            const int k = tid % n_n;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int j = 0; j < n_t; ++j)
                               r_p[j] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];
@@ -4103,8 +4106,8 @@ namespace Portable
                           {
                             const int e = tid / co_dimension_size;
 
-                            const int p = (tid % co_dimension_size) / n_q;
-                            const int q = tid % n_q;
+                            const int q = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int k = 0; k < n_n; ++k)
                               r_p[k] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
@@ -4219,8 +4222,8 @@ namespace Portable
                         }
                       else if constexpr (dim == 3)
                         {
-                          const int q = (tid % co_dimension_size) / n_q;
-                          const int r = tid % n_q;
+                          const int r = (tid % co_dimension_size) / n_q;
+                          const int q = tid % n_q;
 
                           for (int n = 0; n < n_q; ++n)
 
@@ -4384,8 +4387,8 @@ namespace Portable
                         {
                           Number qt[dim];
 
-                          const int q = (tid % co_dimension_size) / n_q;
-                          const int r = tid % n_q;
+                          const int r = (tid % co_dimension_size) / n_q;
+                          const int q = tid % n_q;
 
                           for (int p = 0; p < n_q; ++p)
                             {
@@ -4508,8 +4511,8 @@ namespace Portable
                         }
                       else if constexpr (dim == 3)
                         {
-                          const int q = (tid % co_dimension_size) / n_q;
-                          const int r = tid % n_q;
+                          const int r = (tid % co_dimension_size) / n_q;
+                          const int q = tid % n_q;
 
                           // copy to register
                           for (int n = 0; n < n_q; ++n)
@@ -4584,8 +4587,8 @@ namespace Portable
                         {
                           const int e = tid / co_dimension_size;
 
-                          const int p = (tid % co_dimension_size) / n_q;
-                          const int q = tid % n_q;
+                          const int q = (tid % co_dimension_size) / n_q;
+                          const int p = tid % n_q;
 
                           for (int r = 0; r < n_q; ++r)
                             r_p[r] = s_uq_0[e * n_q * n_q * n_q + r * n_q * n_q + q * n_q + p];
@@ -4629,8 +4632,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int p = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int q = 0; q < n_q; ++q)
                               r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
@@ -4675,8 +4678,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int j = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_t;
+                            const int j = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
                               r_p[p] = s_duq_1[e * n_q * n_t * n_t + k * n_q * n_t + j * n_q + p];
@@ -4708,8 +4711,8 @@ namespace Portable
                         {
                           const int e = tid / co_dimension_size;
 
-                          const int p = (tid % co_dimension_size) / n_q;
-                          const int q = tid % n_q;
+                          const int q = (tid % co_dimension_size) / n_q;
+                          const int p = tid % n_q;
 
                           for (int r = 0; r < n_q; ++r)
                             r_p[r] = s_uq_1[e * n_q * n_q * n_q + r * n_q * n_q + q * n_q + p];
@@ -4753,8 +4756,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int p = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int q = 0; q < n_q; ++q)
                               r_p[q] = s_duq_0[e * n_q * n_q * n_t + k * n_q * n_q + q * n_q + p];
@@ -4799,8 +4802,8 @@ namespace Portable
                           }
                         else if constexpr (dim == 3)
                           {
-                            const int j = (tid % co_dimension_size) / n_t;
-                            const int k = tid % n_t;
+                            const int k = (tid % co_dimension_size) / n_n;
+                            const int j = tid % n_n;
 
                             for (int p = 0; p < n_q; ++p)
                               r_p[p] = s_duq_1[e * n_q * n_n * n_t + k * n_q * n_n + j * n_q + p];
@@ -4832,8 +4835,8 @@ namespace Portable
                         {
                           const int e = tid / co_dimension_size;
 
-                          const int p = (tid % co_dimension_size) / n_q;
-                          const int q = tid % n_q;
+                          const int q = (tid % co_dimension_size) / n_q;
+                          const int p = tid % n_q;
 
                           for (int r = 0; r < n_q; ++r)
                             r_p[r] = s_uq_2[e * n_q * n_q * n_q + r * n_q * n_q + q * n_q + p];
@@ -4860,8 +4863,8 @@ namespace Portable
                           const int e = tid / co_dimension_size;
 
                           {
-                            const int p = (tid % co_dimension_size) / n_n;
-                            const int k = tid % n_n;
+                            const int k = (tid % co_dimension_size) / n_q;
+                            const int p = tid % n_q;
 
                             for (int q = 0; q < n_q; ++q)
                               r_p[q] = s_duq_0[e * n_q * n_q * n_n + k * n_q * n_q + q * n_q + p];
@@ -4887,8 +4890,8 @@ namespace Portable
                           {
                             const int e = tid / co_dimension_size;
 
-                            const int j = (tid % co_dimension_size) / n_n;
-                            const int k = tid % n_n;
+                            const int k = (tid % co_dimension_size) / n_t;
+                            const int j = tid % n_t;
 
                             for (int p = 0; p < n_q; ++p)
                               r_p[p] = s_duq_1[e * n_q * n_t * n_n + k * n_q * n_t + j * n_q + p];

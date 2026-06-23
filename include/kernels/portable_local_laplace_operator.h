@@ -237,14 +237,14 @@ namespace Portable
 
   } // namespace internal
 
-  template <int dim, int fe_degree, typename number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename number>
   class LocalLaplaceOperator
   {
   public:
     static constexpr unsigned int n_local_dofs =
       Utilities::pow(fe_degree + 1, dim);
     static constexpr unsigned int n_q_points =
-      Utilities::pow(fe_degree + 1, dim);
+      Utilities::pow(n_q_points_1d, dim);
 
     LocalLaplaceOperator()
     {}
@@ -255,9 +255,9 @@ namespace Portable
                DeviceVector<number>        &dst) const;
   };
 
-  template <int dim, int fe_degree, typename number>
+  template <int dim, int fe_degree, int n_q_points_1d, typename number>
   DEAL_II_HOST_DEVICE void
-  LocalLaplaceOperator<dim, fe_degree, number>::operator()(
+  LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, number>::operator()(
     const CellData<dim, number> *data,
     const DeviceVector<number>  &src,
     DeviceVector<number>        &dst) const
@@ -286,7 +286,7 @@ namespace Portable
     }
 
     // 2. define scratch pad for the evaluation
-    constexpr int scratch_size = Utilities::pow(fe_degree + 1, dim);
+    constexpr int scratch_size = Utilities::pow(n_q_points_1d, dim);
     auto          scratch_for_eval =
       Kokkos::subview(scratch_pad, Kokkos::make_pair(0, scratch_size));
 
@@ -295,7 +295,7 @@ namespace Portable
       internal::EvaluatorVariant::evaluate_general,
       dim,
       fe_degree + 1,
-      fe_degree + 1,
+      n_q_points_1d,
       number>
       eval(team_member,
            precomputed_data.shape_values,
