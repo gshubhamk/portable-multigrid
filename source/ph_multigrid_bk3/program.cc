@@ -543,12 +543,14 @@ LaplaceProblem<dim, fe_degree>::run()
 
       if (cycle == 0)
         {
-          if (dim == 2)
             GridGenerator::hyper_cube(triangulation, 0., 1.);
-          else
-            GridGenerator::hyper_rectangle(triangulation,
-                                           Point<3>(0., 0., 0),
-                                           Point<3>(0.5, 1., 1.));
+
+          // if (dim == 2)
+          //   GridGenerator::hyper_cube(triangulation, 0., 1.);
+          // else
+          //   GridGenerator::hyper_rectangle(triangulation,
+          //                                  Point<3>(0., 0., 0),
+          //                                  Point<3>(0.5, 1., 1.));
 
           triangulation.refine_global(3 - dim);
         }
