@@ -120,6 +120,7 @@ private:
         eval.integrate_scatter(EvaluationFlags::gradients, dst);
 
 
+
         // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
         //   std::cout << eval.get_dof_value(i) << "   ";
         // std::cout << std::endl;
@@ -176,8 +177,12 @@ private:
             fe_eval.submit_value(-flux, q);
             fe_eval_neighbor.submit_value(flux, q);
 
-            // std::cout << u_minus << " | " << u_plus << std::endl;
+            // std::cout << u_plus << " | " << u_minus << std::endl;
+
+            auto temp = fe_eval.get_normal_derivative(q);
           }
+        std::cout << std::endl;
+
         // std::cout << std::endl;
         fe_eval.integrate(EvaluationFlags::values | EvaluationFlags::gradients);
         fe_eval_neighbor.integrate(EvaluationFlags::values | EvaluationFlags::gradients);
@@ -467,24 +472,24 @@ LaplaceProblem<dim, fe_degree>::test()
 
   // std::cout << "triangulation.n_raw_faces() = " << triangulation.n_raw_faces() << std::endl;
 
-  for (const auto &cell : triangulation.active_cell_iterators())
+  // for (const auto &cell : triangulation.active_cell_iterators())
 
-    {
-      for (unsigned int f = 0; f < 2 * dim; ++f)
-        {
-          const auto &face = cell->face(f);
-          std::cout << face->index() << " | " << cell->face_orientation(f) << "    ";
-        }
+  //   {
+  //     for (unsigned int f = 0; f < 2 * dim; ++f)
+  //       {
+  //         const auto &face = cell->face(f);
+  //         std::cout << face->index() << " | " << cell->face_orientation(f) << "    ";
+  //       }
 
-      //     std::cout << cell->index() << "| " << cell->center() << " : ";
-      //     unsigned int f_counter = 0;
-      // for (const auto &f : cell->face_iterators())
-      //   {
-      //     std::cout << f->index() << " | " << cell->face_orientation(f_counter) << "    ";
-      //     ++f_counter;
-      //   }
-      std::cout << std::endl;
-    }
+  //     //     std::cout << cell->index() << "| " << cell->center() << " : ";
+  //     //     unsigned int f_counter = 0;
+  //     // for (const auto &f : cell->face_iterators())
+  //     //   {
+  //     //     std::cout << f->index() << " | " << cell->face_orientation(f_counter) << "    ";
+  //     //     ++f_counter;
+  //     //   }
+  //     std::cout << std::endl;
+  //   }
   using VecTypeHost = LinearAlgebra::distributed::Vector<double, MemorySpace::Host>;
   using VecType     = LinearAlgebra::distributed::Vector<double, MemorySpace::Default>;
 
