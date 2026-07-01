@@ -550,22 +550,22 @@ namespace Portable
               n_blocks,
               threads_per_block);
 
-            // for (unsigned int i = 0; i < face_info[0].extent(0); ++i)
-            //   {
-            //     const unsigned int cell_minus = face_info[0](i, 0);
-            //     const unsigned int cell_plus  = face_info[0](i, 1);
-            //     const unsigned int f_minus    = face_info[0](i, 2);
-            //     const unsigned int f_plus     = face_info[0](i, 3);
+            for (unsigned int i = 0; i < face_info[0].extent(0); ++i)
+              {
+                const unsigned int cell_minus = face_info[0](i, 0);
+                const unsigned int cell_plus  = face_info[0](i, 1);
+                const unsigned int f_minus    = face_info[0](i, 2);
+                const unsigned int f_plus     = face_info[0](i, 3);
 
-            //     // std::cout << cell_minus << "  " << cell_plus << " " << f_minus << "  " << f_plus
-            //     //           << std::endl;
+                // std::cout << cell_minus << "  " << cell_plus << " " << f_minus << "  " << f_plus
+                //           << std::endl;
 
-            //     for (unsigned int i = 0; i < Utilities::pow(n_q_points_1d, dim - 1); ++i)
-            //       {
-            //         std::cout << face_values_at_quads[color](i, f_minus, cell_minus) <<" | "
-            //                   << face_values_at_quads[color](i, f_plus, cell_plus) << std::endl;
-            //       }
-            //   }
+                for (unsigned int i = 0; i < Utilities::pow(n_q_points_1d, dim - 1); ++i)
+                  {
+                    std::cout << face_normal_derivatives_at_quads[color](i, f_minus, cell_minus) <<" | "
+                              << face_normal_derivatives_at_quads[color](i, f_plus, cell_plus) << std::endl;
+                  }
+              }
           }
       };
 

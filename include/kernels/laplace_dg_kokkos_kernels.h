@@ -95,7 +95,7 @@ namespace BK3
             Number *s_shape_values       = scratch;
             Number *s_co_shape_gradients = s_shape_values + nq * nm;
 
-            Number *s_quad_to_boundary_value_0 = s_co_shape_gradients + nq * nm;
+            Number *s_quad_to_boundary_value_0 = s_co_shape_gradients + nq * nq;
             Number *s_quad_to_boundary_value_1 = s_quad_to_boundary_value_0 + nq;
             Number *s_quad_to_boundary_grad_0  = s_quad_to_boundary_value_1 + nq;
             Number *s_quad_to_boundary_grad_1  = s_quad_to_boundary_grad_0 + nq;
@@ -838,8 +838,7 @@ namespace BK3
       // finding the batch size
       constexpr int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
-      constexpr int n_scratch_arrays =
-        2 * (1 + dim); // values and gradients in each direction on both sides of the face
+      constexpr int n_scratch_arrays = 4; // values and normal derivatives on both sides of the face
 
       const int nelmt = n_faces;
 
@@ -898,9 +897,10 @@ namespace BK3
             Number *scratch_values_minus = s_co_shape_gradients + nq * nq;
             Number *scratch_values_plus  = scratch_values_minus + nelmtPerBatch * nq_total_per_face;
 
-            Number *scratch_grads_minus = scratch_values_plus + nelmtPerBatch * nq_total_per_face;
-            Number *scratch_grads_plus =
-              scratch_grads_minus + nelmtPerBatch * nq_total_per_face * dim;
+            Number *scratch_normal_derivative_minus =
+              scratch_values_plus + nelmtPerBatch * nq_total_per_face;
+            Number *scratch_normal_derivative_plus =
+              scratch_normal_derivative_minus + nelmtPerBatch * nq_total_per_face;
 
             const int threadIdx = team_member.team_rank();
             const int blockSize = team_member.team_size();
@@ -945,13 +945,17 @@ namespace BK3
                       scratch_values_minus[tid] = face_values_at_quads(q, f_minus, cell_minus);
                       scratch_values_plus[tid]  = face_values_at_quads(q, f_plus, cell_plus);
 
-                      scratch_grads_minus[e * dim * nq_total_per_face +
-                                          normal_direction * nq_total_per_face + q] =
-                        face_normal_derivatives_at_quads(q, f_minus, cell_minus);
+                      Number jac_per_n[2];
+                      jac_per_n[0] = jacobian_times_normal(
+                        e * dim * nq_total_per_face + normal_direction * nq_total_per_face + q, 0);
+                      jac_per_n[1] = jacobian_times_normal(
+                        e * dim * nq_total_per_face + normal_direction * nq_total_per_face + q, 1);
 
-                      scratch_grads_plus[e * dim * nq_total_per_face +
-                                         normal_direction * nq_total_per_face + q] =
-                        face_normal_derivatives_at_quads(q, f_plus, cell_plus);
+                      scratch_normal_derivative_minus[e * nq_total_per_face + q] =
+                        face_normal_derivatives_at_quads(q, f_minus, cell_minus) * jac_per_n[0];
+
+                      scratch_normal_derivative_plus[e * nq_total_per_face + q] =
+                        face_normal_derivatives_at_quads(q, f_plus, cell_plus) * jac_per_n[1];
                     }
                   team_member.team_barrier();
                 }
@@ -978,6 +982,7 @@ namespace BK3
                             }
 
                           Number qr, qs;
+                          Number jac_per_n[2];
                           for (int p = 0; p < nq; ++p)
                             {
                               qr = 0;
@@ -989,10 +994,19 @@ namespace BK3
                                   qs += s_co_shape_gradients[n * nq + p] * r_q[n];
                                 }
 
-                              scratch_grads_minus[e * dim * nq_total_per_face +
-                                                  tangent_direction * nq_total_per_face + p] = qr;
-                              scratch_grads_plus[e * dim * nq_total_per_face +
-                                                 tangent_direction * nq_total_per_face + p]  = qs;
+                              jac_per_n[0] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction * nq_total_per_face + p,
+                                                      0);
+                              jac_per_n[1] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction * nq_total_per_face + p,
+                                                      1);
+
+                              scratch_normal_derivative_minus[e * nq_total_per_face + p] +=
+                                qr * jac_per_n[0];
+                              scratch_normal_derivative_plus[e * nq_total_per_face + p] +=
+                                qs * jac_per_n[1];
                             }
                         }
                       else if (dim == 3)
@@ -1013,6 +1027,7 @@ namespace BK3
                             }
 
                           Number qr, qs, qt, qv;
+                          Number jac_per_n[2][2];
 
                           for (int q = 0; q < nq; ++q)
                             {
@@ -1030,18 +1045,28 @@ namespace BK3
                                   qv += scratch_values_plus[e * nq * nq + q * nq + n] * r_r[n];
                                 }
 
-                              scratch_grads_minus[e * dim * nq_total_per_face +
-                                                  tangent_direction_0 * nq_total_per_face +
-                                                  q * nq + p] = qr;
-                              scratch_grads_plus[e * dim * nq_total_per_face +
-                                                 tangent_direction_0 * nq_total_per_face + q * nq +
-                                                 p]            = qs;
-                              scratch_grads_minus[e * dim * nq_total_per_face +
-                                                  tangent_direction_1 * nq_total_per_face +
-                                                  q * nq + p] = qt;
-                              scratch_grads_plus[e * dim * nq_total_per_face +
-                                                 tangent_direction_1 * nq_total_per_face + q * nq +
-                                                 p]            = qv;
+                              jac_per_n[0][0] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction_0 * nq_total_per_face + q,
+                                                      0);
+                              jac_per_n[0][1] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction_0 * nq_total_per_face + q,
+                                                      1);
+                              jac_per_n[1][0] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction_1 * nq_total_per_face + q,
+                                                      0);
+                              jac_per_n[1][1] =
+                                jacobian_times_normal(e * dim * nq_total_per_face +
+                                                        tangent_direction_1 * nq_total_per_face + q,
+                                                      1);
+
+                              scratch_normal_derivative_minus[e * nq_total_per_face + q * nq + p] +=
+                                qr * jac_per_n[0][0] + qt * jac_per_n[1][0];
+
+                              scratch_normal_derivative_plus[e * nq_total_per_face + q * nq + p] +=
+                                qs * jac_per_n[0][1] + qv * jac_per_n[1][1];
                             }
                         }
                     }

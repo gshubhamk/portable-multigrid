@@ -41,14 +41,78 @@ namespace Portable
   namespace internal
   {
 
+    namespace MatrixFreeFunctions
+    {
+    /**
+     * This struct stores the shape functions, their gradients and Hessians
+     * evaluated for a one-dimensional section of a tensor product finite
+     * element and tensor product quadrature formula in reference
+     * coordinates. This data structure also includes the evaluation of
+     * quantities at the cell boundary and on the sub-interval $(0, 0.5)$ and
+     * $(0.5, 1)$ for face integrals.
+     */
     template <typename Number>
     struct UnivariateShapeData
     {
+      /**
+       * Empty constructor. Sets default configuration.
+       */
       UnivariateShapeData();
+
+      /**
+       * Return the memory consumption of this class in bytes.
+       */
+      std::size_t
+      memory_consumption() const;
 
       void
       reinit(const ::dealii::internal::MatrixFreeFunctions::UnivariateShapeData<Number>
                &univariate_shape_data_cpu);
+
+      /**
+       * Evaluate the finite element shape functions at the points of the
+       * given quadrature formula, filling the fields
+       * shape_[values,gradients,hessians] and related information.
+       *
+       * The two last arguments 'lexicographic' and 'direction' are used to
+       * describe the unknowns along a single dimension, and the respective
+       * direction of derivatives.
+       */
+      template <int dim, int spacedim>
+      void
+      evaluate_shape_functions(const FiniteElement<dim, spacedim> &fe,
+                               const Quadrature<1>                &quad,
+                               const std::vector<unsigned int>    &lexicographic,
+                               const unsigned int                  direction);
+
+      /**
+       * Evaluate the auxiliary polynomial space associated with the Lagrange
+       * polynomials in points of the given quadrature formula, filling the
+       * fields shape_[gradients,hessians]_collocation and related
+       * information.
+       */
+      template <int dim, int spacedim>
+      void
+      evaluate_collocation_space(const FiniteElement<dim, spacedim> &fe,
+                                 const Quadrature<1>                &quad,
+                                 const std::vector<unsigned int>    &lexicographic,
+                                 const unsigned int                  direction);
+
+      /**
+       * Check whether we have symmetries in the shape values. In that case,
+       * also fill the shape_???_eo fields.
+       */
+      bool
+      check_and_set_shapes_symmetric();
+
+      /**
+       * Check whether symmetric 1d basis functions are such that the shape
+       * values form a diagonal matrix, i.e., the nodal points are collocated
+       * with the quadrature points. This allows for specialized algorithms
+       * that save some operations in the evaluation.
+       */
+      bool
+      check_shapes_collocation() const;
 
       /**
        * Encodes the type of element detected at construction. FEEvaluation
@@ -497,7 +561,7 @@ namespace Portable
       exec_space.fence();
 #endif
     }
-
+  } //namespace MatrixFreeFunctions
   } // namespace internal
 
 } // namespace Portable
