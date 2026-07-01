@@ -36,6 +36,11 @@
 #include <iostream>
 
 #include "operators/portable_laplace_operator_dg.h"
+#include <deal.II/matrix_free/evaluation_kernels_face.h>
+#include <deal.II/matrix_free/evaluation_template_face_factory.templates.h>
+#include <deal.II/matrix_free/tensor_product_kernels.h>
+
+
 
 using namespace dealii;
 
@@ -158,22 +163,36 @@ private:
             const VectorizedArray<Number> solution_jump =
               (phi_inner.get_value(q) - phi_outer.get_value(q));
 
-            std::cout << solution_jump << std::endl;
             const VectorizedArray<Number> average_normal_derivative =
               (phi_inner.get_normal_derivative(q) + phi_outer.get_normal_derivative(q)) *
               Number(0.5);
+
+            // std::cout << average_normal_derivative << std::endl;
+
             const VectorizedArray<Number> test_by_value =
               solution_jump * sigma - average_normal_derivative;
+
+            // std::cout << sigma << std::endl;
+
+            // std::cout << test_by_value << std::endl;
 
             phi_inner.submit_value(test_by_value, q);
             phi_outer.submit_value(-test_by_value, q);
 
             phi_inner.submit_normal_derivative(-solution_jump * Number(0.5), q);
             phi_outer.submit_normal_derivative(-solution_jump * Number(0.5), q);
+
+            // std::cout<<phi_inner.get_value(q)<<"  | "
+            //          <<phi_outer.get_value(q)<<std::endl;
+
           }
 
         phi_inner.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
+            std::cout<<std::endl;
+
         phi_outer.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
+            std::cout<<std::endl;
+
       }
   }
 
@@ -526,7 +545,7 @@ LaplaceProblem<dim, fe_degree>::run()
 
       if (cycle == 0)
         {
-          GridGenerator::hyper_cube(triangulation, 0., 2.);
+          GridGenerator::hyper_cube(triangulation, 0., 1.);
           // triangulation.refine_global(1);
         }
       else

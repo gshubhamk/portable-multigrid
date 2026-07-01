@@ -148,13 +148,22 @@ namespace Portable
 
     // 0 - inner faces, 1 - boundary faces
     Kokkos::Array<Kokkos::View<unsigned int *[5], MemorySpace::Default::kokkos_space>, 2> face_info;
-    Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jacobian_times_normal_inner_face;
-    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> jacobian_times_normal_boundary_face;
+    Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jacobians_times_normal_inner_face;
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> jacobians_times_normal_boundary_face;
+    Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jxw_inner_face;
+    Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jxw_boundary_face;
+
 
     Kokkos::View<Number *, MemorySpace::Default::kokkos_space> penalty_parameters_inner_face;
     Kokkos::View<Number *, MemorySpace::Default::kokkos_space> penalty_parameters_boundary_face;
 
     internal::MatrixFreeFunctions::UnivariateShapeData<Number> shape_data;
+
+    Number
+    get_penalty_factor(const double cell_extent_minus, const double cell_extent_plus) const
+    {
+      return fe_degree * (fe_degree + 1.) * 0.5 * (1. / cell_extent_minus + 1. / cell_extent_plus);
+    }
   };
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
@@ -369,16 +378,23 @@ namespace Portable
                                                     update_normal_vectors | update_jacobians);
 
 
-      jacobian_times_normal_inner_face =
+      jacobians_times_normal_inner_face =
         Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
           Kokkos::view_alloc("jacobian_times_normal_inner_face", Kokkos::WithoutInitializing),
           inner_faces_v.size() * n_q_points_face * dim);
 
-
-      jacobian_times_normal_boundary_face =
+      jacobians_times_normal_boundary_face =
         Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
           Kokkos::view_alloc("jacobian_times_normal_boundary_face", Kokkos::WithoutInitializing),
           boundary_faces_v.size() * n_q_points_face * dim);
+
+      jxw_inner_face = Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("jxw_inner_face", Kokkos::WithoutInitializing),
+        inner_faces_v.size() * n_q_points_face);
+
+      jxw_boundary_face = Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("jxw_boundary_face", Kokkos::WithoutInitializing),
+        boundary_faces_v.size() * n_q_points_face);
 
       penalty_parameters_inner_face = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
         Kokkos::view_alloc("penalty_parameters_inner_face", Kokkos::WithoutInitializing),
@@ -388,10 +404,12 @@ namespace Portable
         Kokkos::view_alloc("penalty_parameters_boundary_face", Kokkos::WithoutInitializing),
         boundary_faces_v.size());
 
-      auto jacobian_times_normal_inner_face_host =
-        Kokkos::create_mirror_view(jacobian_times_normal_inner_face);
-      auto jacobian_times_normal_boundary_face_host =
-        Kokkos::create_mirror_view(jacobian_times_normal_boundary_face);
+      auto jacobians_times_normal_inner_face_host =
+        Kokkos::create_mirror_view(jacobians_times_normal_inner_face);
+      auto jacobians_times_normal_boundary_face_host =
+        Kokkos::create_mirror_view(jacobians_times_normal_boundary_face);
+      auto jxw_inner_face_host    = Kokkos::create_mirror_view(jxw_inner_face);
+      auto jxw_boundary_face_host = Kokkos::create_mirror_view(jxw_boundary_face);
       auto penalty_parameters_inner_face_host =
         Kokkos::create_mirror_view(penalty_parameters_inner_face);
       auto penalty_parameters_boundary_face_host =
@@ -414,44 +432,45 @@ namespace Portable
 
           // compute penalty factors
           {
-            const unsigned int normal_minus = GeometryInfo<dim>::unit_normal_direction[f_minus];
-            const unsigned int normal_plus  = GeometryInfo<dim>::unit_normal_direction[f_plus];
+            const double extent1 =
+              cell_it_minus->measure() / cell_it_minus->face(f_minus)->measure();
+            const double extent2 = cell_it_plus->measure() / cell_it_plus->face(f_plus)->measure();
 
-            penalty_parameters_inner_face_host(f) =
-              0.5 * (fe_degree) * (fe_degree + 1) /
-              (cell_it_minus->extent_in_direction(normal_minus) +
-               cell_it_plus->extent_in_direction(normal_plus));
+            penalty_parameters_inner_face_host(f) = get_penalty_factor(extent1, extent2);
+
+            fe_face_values.reinit(cell_it_minus, f_minus);
+            fe_face_values_neighbor.reinit(cell_it_plus, f_plus);
+
+            for (unsigned int q = 0; q < n_q_points_face; ++q)
+              {
+                const Tensor<1, dim> n_minus = fe_face_values.normal_vector(q);
+
+                const Tensor<2, dim, Number> inv_jacobian_minus(
+                  fe_face_values.jacobian(q).covariant_form());
+
+                const Tensor<2, dim, Number> inv_jacobian_plus(
+                  fe_face_values_neighbor.jacobian(q).covariant_form());
+
+                Tensor<1, dim, Number> jac_x_n_minus = inv_jacobian_minus * n_minus;
+
+                Tensor<1, dim, Number> jac_x_n_plus = inv_jacobian_plus * n_minus;
+
+                jxw_inner_face_host(f * n_q_points_face + q, 0) = fe_face_values.JxW(q);
+
+                jxw_inner_face_host(f * n_q_points_face + q, 1) = fe_face_values_neighbor.JxW(q);
+
+                for (unsigned int d = 0; d < dim; d++)
+                  {
+                    jacobians_times_normal_inner_face_host(f * dim * n_q_points_face +
+                                                            d * n_q_points_face + q,
+                                                          0) = jac_x_n_minus[d];
+                    jacobians_times_normal_inner_face_host(f * dim * n_q_points_face +
+                                                            d * n_q_points_face + q,
+                                                          1) = jac_x_n_plus[d];
+                  }
+              }
           }
-
-          fe_face_values.reinit(cell_it_minus, f_minus);
-          fe_face_values_neighbor.reinit(cell_it_plus, f_plus);
-
-          for (unsigned int q = 0; q < n_q_points_face; ++q)
-            {
-              const Tensor<1, dim> n_minus = fe_face_values.normal_vector(q);
-
-              const Tensor<2, dim, Number> inv_jacobian_minus(
-                fe_face_values.jacobian(q).covariant_form());
-
-              const Tensor<2, dim, Number> inv_jacobian_plus(
-                fe_face_values_neighbor.jacobian(q).covariant_form());
-
-              Tensor<1, dim, Number> jac_x_n_minus = inv_jacobian_minus * n_minus;
-
-              Tensor<1, dim, Number> jac_x_n_plus = inv_jacobian_plus * n_minus;
-
-              for (unsigned int d = 0; d < dim; d++)
-                {
-                  jacobian_times_normal_inner_face_host(f * dim * n_q_points_face +
-                                                          d * n_q_points_face + q,
-                                                        0) = jac_x_n_minus[d];
-                  jacobian_times_normal_inner_face_host(f * dim * n_q_points_face +
-                                                          d * n_q_points_face + q,
-                                                        1) = jac_x_n_plus[d];
-                }
-            }
         }
-
       for (unsigned int f = 0; f < boundary_faces_v.size(); ++f)
         {
           const unsigned int cell = boundary_faces_v[f][0];
@@ -462,13 +481,11 @@ namespace Portable
           const typename dealii::Triangulation<dim>::cell_iterator cell_it(
             &triangulation, cell_level_index[cell].first, cell_level_index[cell].second);
 
-
           // compute penalty factors
           {
-            const unsigned int normal = GeometryInfo<dim>::unit_normal_direction[face];
+            const double extent = cell_it->measure() / cell_it->face(face)->measure();
 
-            penalty_parameters_boundary_face_host(face) =
-              (fe_degree) * (fe_degree + 1) / cell_it->extent_in_direction(normal);
+            penalty_parameters_boundary_face_host(f) = get_penalty_factor(extent, extent);
           }
 
           fe_face_values.reinit(cell_it, face);
@@ -484,16 +501,18 @@ namespace Portable
 
               for (unsigned int d = 0; d < dim; d++)
                 {
-                  jacobian_times_normal_boundary_face_host(face * dim * n_q_points_face +
+                  jacobians_times_normal_boundary_face_host(face * dim * n_q_points_face +
                                                            d * n_q_points_face + q) = jac_x_n[d];
                 }
             }
         }
-      Kokkos::deep_copy(jacobian_times_normal_inner_face, jacobian_times_normal_inner_face_host);
-      Kokkos::deep_copy(penalty_parameters_boundary_face, penalty_parameters_boundary_face_host);
-      Kokkos::deep_copy(jacobian_times_normal_boundary_face,
-                        jacobian_times_normal_boundary_face_host);
+      Kokkos::deep_copy(jacobians_times_normal_inner_face, jacobians_times_normal_inner_face_host);
+      Kokkos::deep_copy(jacobians_times_normal_boundary_face,
+                        jacobians_times_normal_boundary_face_host);
+      Kokkos::deep_copy(jxw_inner_face, jxw_inner_face_host);
+      Kokkos::deep_copy(jxw_boundary_face, jxw_boundary_face_host);
       Kokkos::deep_copy(penalty_parameters_inner_face, penalty_parameters_inner_face_host);
+      Kokkos::deep_copy(penalty_parameters_boundary_face, penalty_parameters_boundary_face_host);
 
       Kokkos::fence();
     }
@@ -536,8 +555,8 @@ namespace Portable
             const auto &precomputed_data = matrix_free.get_data(color);
 
             BK3::DG::compute_cell<dim, fe_degree + 1, n_q_points_1d, Number>(
-              precomputed_data.shape_values,
-              precomputed_data.co_shape_gradients,
+              shape_data.shape_values,
+              shape_data.shape_gradients_collocation,
               G_tensors[color],
               src_device,
               dst_device,
@@ -553,9 +572,11 @@ namespace Portable
             const unsigned int n_inner_faces = face_info[0].extent(0);
 
             BK3::DG::compute_inner_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
-              precomputed_data.shape_values,
-              precomputed_data.co_shape_gradients,
-              jacobian_times_normal_inner_face,
+              shape_data.shape_values,
+              shape_data.shape_gradients_collocation,
+              jacobians_times_normal_inner_face,
+              jxw_inner_face,
+              penalty_parameters_inner_face,
               src_device,
               dst_device,
               face_values_at_quads[color],
@@ -580,7 +601,8 @@ namespace Portable
 
             //     for (unsigned int i = 0; i < Utilities::pow(n_q_points_1d, dim - 1); ++i)
             //       {
-            //         std::cout << face_normal_derivatives_at_quads[color](i, f_minus, cell_minus)
+            //         std::cout << face_normal_derivatives_at_quads[color](i, f_minus,
+            //         cell_minus)
             //                   << " | "
             //                   << face_normal_derivatives_at_quads[color](i, f_plus, cell_plus)
             //                   << std::endl;
