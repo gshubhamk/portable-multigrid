@@ -222,6 +222,7 @@ namespace Portable
 
       std::vector<double> val_and_der(2);
 
+      std::cout << "******\n";
       for (unsigned int i = 0; i < basis.size(); ++i)
         {
           basis[i].value(0., val_and_der);
@@ -462,11 +463,11 @@ namespace Portable
                 for (unsigned int d = 0; d < dim; d++)
                   {
                     jacobians_times_normal_inner_face_host(f * dim * n_q_points_face +
-                                                            d * n_q_points_face + q,
-                                                          0) = jac_x_n_minus[d];
+                                                             d * n_q_points_face + q,
+                                                           0) = jac_x_n_minus[d];
                     jacobians_times_normal_inner_face_host(f * dim * n_q_points_face +
-                                                            d * n_q_points_face + q,
-                                                          1) = jac_x_n_plus[d];
+                                                             d * n_q_points_face + q,
+                                                           1) = jac_x_n_plus[d];
                   }
               }
           }
@@ -502,7 +503,7 @@ namespace Portable
               for (unsigned int d = 0; d < dim; d++)
                 {
                   jacobians_times_normal_boundary_face_host(face * dim * n_q_points_face +
-                                                           d * n_q_points_face + q) = jac_x_n[d];
+                                                            d * n_q_points_face + q) = jac_x_n[d];
                 }
             }
         }

@@ -17,11 +17,14 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/solver_cg.h>
 
+#include <deal.II/matrix_free/evaluation_kernels_face.h>
+#include <deal.II/matrix_free/evaluation_template_face_factory.templates.h>
 #include <deal.II/matrix_free/fe_evaluation.h>
 #include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/operators.h>
 #include <deal.II/matrix_free/portable_fe_evaluation.h>
 #include <deal.II/matrix_free/portable_matrix_free.h>
+#include <deal.II/matrix_free/tensor_product_kernels.h>
 
 #include <deal.II/multigrid/mg_constrained_dofs.h>
 #include <deal.II/multigrid/mg_smoother.h>
@@ -36,9 +39,6 @@
 #include <iostream>
 
 #include "operators/portable_laplace_operator_dg.h"
-#include <deal.II/matrix_free/evaluation_kernels_face.h>
-#include <deal.II/matrix_free/evaluation_template_face_factory.templates.h>
-#include <deal.II/matrix_free/tensor_product_kernels.h>
 
 
 
@@ -105,31 +105,20 @@ private:
                  const VectorType                            &src,
                  const std::pair<unsigned int, unsigned int> &cell_range) const
   {
-    // std::cout << "LaplaceOperatorCPU::cell_operation" << std::endl;
-    FEEvaluation<dim, -1, 0, 1, Number> eval(matrix_free);
+    // FEEvaluation<dim, -1, 0, 1, Number> eval(matrix_free);
 
-    for (unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
-      {
-        eval.reinit(cell);
-        eval.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
+    // for (unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
+    //   {
+    //     eval.reinit(cell);
+    //     eval.gather_evaluate(src,  EvaluationFlags::gradients);
+    //     for (const unsigned int q : eval.quadrature_point_indices())
+    //       {
+    //         const auto grad = eval.get_gradient(q);
+    //         eval.submit_gradient(make_vectorized_array<Number>(1.0) * grad, q);
+    //       }
+    //     eval.integrate_scatter(EvaluationFlags::gradients, dst);
 
-        // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
-        // std::cout << eval.get_dof_value(i) << "   ";
-
-        for (const unsigned int q : eval.quadrature_point_indices())
-          {
-            // std::cout << eval.get_value(q) << "  ";
-            const auto grad = eval.get_gradient(q);
-            eval.submit_gradient(make_vectorized_array<Number>(1.0) * grad, q);
-          }
-        eval.integrate_scatter(EvaluationFlags::gradients, dst);
-
-
-
-        // for (unsigned int i = 0; i < eval.dofs_per_component; ++i)
-        //   std::cout << eval.get_dof_value(i) << "   ";
-        // std::cout << std::endl;
-      }
+    //   }
   }
 
   void
@@ -138,7 +127,7 @@ private:
                        const VectorType                            &src,
                        const std::pair<unsigned int, unsigned int> &face_range) const
   {
-    // std::cout << "LaplaceOperatorCPU::inner_face_operation" << std::endl;
+    // // std::cout << "LaplaceOperatorCPU::inner_face_operation" << std::endl;
     FEFaceEvaluation<dim, -1, 0, 1, Number> phi_inner(data, true);
     FEFaceEvaluation<dim, -1, 0, 1, Number> phi_outer(data, false);
 
@@ -184,15 +173,13 @@ private:
 
             // std::cout<<phi_inner.get_value(q)<<"  | "
             //          <<phi_outer.get_value(q)<<std::endl;
-
           }
 
         phi_inner.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
-            std::cout<<std::endl;
+        std::cout << std::endl;
 
         phi_outer.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
-            std::cout<<std::endl;
-
+        std::cout << std::endl;
       }
   }
 
@@ -203,12 +190,40 @@ private:
                           const VectorType                            &src,
                           const std::pair<unsigned int, unsigned int> &face_range) const
   {
-    (void)data;
-    (void)dst;
-    (void)src;
-    (void)face_range;
+    // FEFaceEvaluation<dim, -1, 0, 1, Number> phi_inner(data, true);
 
-    // std::cout << "LaplaceOperatorCPU::boundary_face_operation" << std::endl;
+    // const int actual_degree = data.get_dof_handler().get_fe().degree;
+
+
+    // for (unsigned int face = face_range.first; face < face_range.second; ++face)
+    //   {
+    //     phi_inner.reinit(face);
+    //     phi_inner.gather_evaluate(src, EvaluationFlags::values | EvaluationFlags::gradients);
+
+    //     const VectorizedArray<Number> inverse_length_normal_to_face =
+    //       std::abs((phi_inner.normal_vector(0) * phi_inner.inverse_jacobian(0))[dim - 1]);
+    //     const VectorizedArray<Number> sigma =
+    //       inverse_length_normal_to_face * Number(actual_degree * (actual_degree + 1));
+    //     const bool is_dirichlet = (data.get_boundary_id(face) == 0);
+
+    //     for (const unsigned int q : phi_inner.quadrature_point_indices())
+    //       {
+    //         const VectorizedArray<Number> u_inner = phi_inner.get_value(q);
+    //         const VectorizedArray<Number> u_outer = is_dirichlet ? -u_inner : u_inner;
+    //         const VectorizedArray<Number> normal_derivative_inner =
+    //           phi_inner.get_normal_derivative(q);
+    //         const VectorizedArray<Number> normal_derivative_outer =
+    //           is_dirichlet ? normal_derivative_inner : -normal_derivative_inner;
+    //         const VectorizedArray<Number> solution_jump = (u_inner - u_outer);
+    //         const VectorizedArray<Number> average_normal_derivative =
+    //           (normal_derivative_inner + normal_derivative_outer) * Number(0.5);
+    //         const VectorizedArray<Number> test_by_value =
+    //           solution_jump * sigma - average_normal_derivative;
+    //         phi_inner.submit_normal_derivative(-solution_jump * Number(0.5), q);
+    //         phi_inner.submit_value(test_by_value, q);
+    //       }
+    //     phi_inner.integrate_scatter(EvaluationFlags::values | EvaluationFlags::gradients, dst);
+    //   }
   }
 };
 
@@ -513,9 +528,11 @@ LaplaceProblem<dim, fe_degree>::test()
   op.reinit(mapping, dof_handler, constraints, false);
 
   VecType dst, src;
+  dst.reinit(dst_cpu.get_partitioner());
+  src.reinit(dst_cpu.get_partitioner());
 
-  op.initialize_dof_vector(dst);
-  op.initialize_dof_vector(src);
+  // op.initialize_dof_vector(dst);
+  // op.initialize_dof_vector(src);
 
   LinearAlgebra::ReadWriteVector<double> rw(src.locally_owned_elements());
   rw.import_elements(src_cpu, VectorOperation::insert);
@@ -525,8 +542,14 @@ LaplaceProblem<dim, fe_degree>::test()
 
   // src_cpu.print(std::cout);
   // src.print(std::cout);
+  // std::cout<<"====================================="<<std::endl<<std::endl;
 
   op.vmult(dst, src);
+
+  dst_cpu.print(std::cout);
+  // std::cout<<"====================================="<<std::endl<<std::endl;
+  // dst.print(std::cout);
+  
 
 
   // dst_cpu.print(std::cout);
