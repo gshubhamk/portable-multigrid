@@ -66,6 +66,7 @@ public:
   void
   vmult(VectorType &dst, const VectorType &src) const
   {
+    // src.update_ghost_values();
     matrix_free->loop(&LaplaceOperatorCPU::cell_operation,
                       &LaplaceOperatorCPU::inner_face_operation,
                       &LaplaceOperatorCPU::boundary_face_operation,
@@ -75,6 +76,10 @@ public:
                       true,
                       MatrixFree<dim, Number>::DataAccessOnFaces::gradients,
                       MatrixFree<dim, Number>::DataAccessOnFaces::gradients);
+
+    // dst.compress(VectorOperation::add);
+    // src.zero_out_ghost_values();
+
     for (unsigned int i : matrix_free->get_constrained_dofs())
       dst.local_element(i) = src.local_element(i);
   }
@@ -336,14 +341,12 @@ LaplaceProblem<dim, fe_degree>::setup_matrix_free()
 
   matrix_free_cpu.initialize_dof_vector(system_rhs_cpu);
   matrix_free_cpu.initialize_dof_vector(solution_cpu);
-
 }
 
 template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::assemble_rhs()
 {
-
   const QGauss<dim> quadrature_formula(fe_degree + 1);
 
   FEValues<dim> fe_values(fe, quadrature_formula, update_values | update_JxW_values);
@@ -395,14 +398,14 @@ LaplaceProblem<dim, fe_degree>::solve()
   solution_device = 0;
   solution_cpu    = 0;
 
-  // cg.solve(system_matrix, solution_device, system_rhs_device, smoother);
   cg.solve(system_matrix, solution_device, system_rhs_device, PreconditionIdentity());
 
-  pcout << "  Solver converged in " << solver_control.last_step() << " iterations." << std::endl;
+  pcout << "  Solver converged in     " << solver_control.last_step() << " iterations."
+        << std::endl;
 
   cg_cpu.solve(system_matrix_cpu, solution_cpu, system_rhs_cpu, PreconditionIdentity());
 
-  pcout << "  Solver CPU converged in " << solver_control.last_step() << " iterations."
+  pcout << "  Solver CPU converged in " << solver_control.last_step() << " iterations." << std::endl
         << std::endl;
 
   LinearAlgebra::ReadWriteVector<double> rw_vector(locally_owned_dofs);
@@ -449,31 +452,8 @@ template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::test()
 {
-  // std::cout << "triangulation.n_cells() = " << triangulation.n_active_cells() << std::endl;
-
-  // std::cout << "triangulation.n_raw_faces() = " << triangulation.n_raw_faces() << std::endl;
-
-  // for (const auto &cell : triangulation.active_cell_iterators())
-
-  //   {
-  //     for (unsigned int f = 0; f < 2 * dim; ++f)
-  //       {
-  //         const auto &face = cell->face(f);
-  //         std::cout << face->index() << " | " << cell->face_orientation(f) << "    ";
-  //       }
-
-  //     //     std::cout << cell->index() << "| " << cell->center() << " : ";
-  //     //     unsigned int f_counter = 0;
-  //     // for (const auto &f : cell->face_iterators())
-  //     //   {
-  //     //     std::cout << f->index() << " | " << cell->face_orientation(f_counter) << "    ";
-  //     //     ++f_counter;
-  //     //   }
-  //     std::cout << std::endl;
-  //   }
   using VecTypeHost = LinearAlgebra::distributed::Vector<double, MemorySpace::Host>;
   using VecType     = LinearAlgebra::distributed::Vector<double, MemorySpace::Default>;
-
 
   VecTypeHost dst_cpu, src_cpu;
 
@@ -483,57 +463,40 @@ LaplaceProblem<dim, fe_degree>::test()
   for (unsigned int i = 0; i < src_cpu.locally_owned_size(); ++i)
     src_cpu.local_element(i) = (double)(i);
 
+  src_cpu.compress(VectorOperation::add);
+  src_cpu.update_ghost_values();
+
   system_matrix_cpu.vmult(dst_cpu, src_cpu);
 
-  Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, double> op;
-  op.reinit(mapping, dof_handler, constraints, false);
-
   VecType dst, src;
-  dst.reinit(dst_cpu.get_partitioner());
-  src.reinit(dst_cpu.get_partitioner());
-
-  // op.initialize_dof_vector(dst);
-  // op.initialize_dof_vector(src);
+  system_matrix.initialize_dof_vector(dst);
+  system_matrix.initialize_dof_vector(src);
 
   LinearAlgebra::ReadWriteVector<double> rw(src.locally_owned_elements());
   rw.import_elements(src_cpu, VectorOperation::insert);
   src.import_elements(rw, VectorOperation::insert);
 
-  std::cout << std::endl << std::endl;
-
-  // src_cpu.print(std::cout);
-  // src.print(std::cout);
-  // std::cout<<"====================================="<<std::endl<<std::endl;
-
-  op.vmult(dst, src);
-
-  // dst_cpu.print(std::cout);
-  // std::cout << "=====================================" << std::endl << std::endl;
-  // dst.print(std::cout);
-
+  system_matrix.vmult(dst, src);
 
   VecTypeHost err(dst_cpu.get_partitioner());
-
 
   rw.import_elements(dst, VectorOperation::insert);
   err.import_elements(rw, VectorOperation::insert);
 
   err -= dst_cpu;
 
-  std::cout << "dst_cpu.l2_norm = " << dst_cpu.l2_norm() << std::endl;
-  std::cout << "dst.l2_norm     = " << dst.l2_norm() << std::endl;
-  std::cout << "err.l2_norm     = " << err.l2_norm() << std::endl;
-
-  // dst_cpu.print(std::cout);
-  // dst.print(std::cout);
+  pcout << "dst_cpu.l2_norm = " << dst_cpu.l2_norm() << std::endl;
+  pcout << "dst.l2_norm     = " << dst.l2_norm() << std::endl;
+  pcout << "err.l2_norm     = " << err.l2_norm() << std::endl;
 }
 template <int dim, int fe_degree>
 void
 LaplaceProblem<dim, fe_degree>::run()
 {
-  pcout << "============== fe_degree = " << fe_degree << " ============== \n\n";
+  pcout << "============== dim = " << dim << ", " << " fe_degree = " << fe_degree
+        << " ============== \n\n";
 
-  for (unsigned int cycle = 0; cycle < 3; ++cycle)
+  for (unsigned int cycle = 0; cycle < 5; ++cycle)
     {
       pcout << std::endl << std::endl;
       pcout << "Cycle " << cycle << std::endl;
@@ -551,13 +514,12 @@ LaplaceProblem<dim, fe_degree>::run()
 
       setup_dofs();
       setup_matrix_free();
-      // setup_smoothers();
       assemble_rhs();
 
       solve();
       output_results(cycle);
 
-      // test();
+      test();
 
       pcout << std::endl;
     }
@@ -583,13 +545,24 @@ main(int argc, char *argv[])
     {
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
-      const int dim           = 3;
-      const int max_fe_degree = 4;
+      {
+        const int dim           = 2;
+        const int max_fe_degree = 4;
 
-      for (int fe_degree = 1; fe_degree <= max_fe_degree; ++fe_degree)
-        {
-          solve_for_degree<dim, 1>(fe_degree);
-        }
+        for (int fe_degree = 1; fe_degree <= max_fe_degree; ++fe_degree)
+          {
+            solve_for_degree<dim, 1>(fe_degree);
+          }
+      }
+      {
+        const int dim           = 3;
+        const int max_fe_degree = 4;
+
+        for (int fe_degree = 1; fe_degree <= max_fe_degree; ++fe_degree)
+          {
+            solve_for_degree<dim, 1>(fe_degree);
+          }
+      }
     }
   catch (std::exception &exc)
     {

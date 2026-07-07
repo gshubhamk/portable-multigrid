@@ -979,10 +979,7 @@ namespace Portable
             //   numBlocks,
             //   threadsPerBlock);
 
-            BK1::Parallel::KokkosRestrictionBatchedKernel<dim,
-                                                          p_coarse + 1,
-                                                          p_fine + 1,
-                                                          number>(
+            BK1::Parallel::KokkosRestrictionBatchedKernel<dim, p_coarse + 1, p_fine + 1, number>(
               this->prolongation_matrix_1d,
               src_device,
               dst_device,

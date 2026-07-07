@@ -19,31 +19,17 @@ DEAL_II_NAMESPACE_OPEN
 namespace Portable
 {
 
-  namespace internal
-  {
-
-    struct FaceToCellTopology
-    {
-      unsigned int global_face_index;
-
-      unsigned int cell_interior;
-
-      unsigned int cell_exterior;
-
-      unsigned int exterior_face_no;
-
-      unsigned int interior_face_no;
-
-      unsigned int face_orientation;
-    };
-
-  } // namespace internal
-
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   class LaplaceOperatorDG : public LaplaceOperatorBase<dim, Number>
   {
   public:
     LaplaceOperatorDG() = default;
+
+    LaplaceOperatorDG(const Mapping<dim>              &mapping,
+                      const DoFHandler<dim>           &dof_handler,
+                      const AffineConstraints<Number> &constraints,
+                      bool                             overlap_communication_computation);
+
 
     void
     reinit(const Mapping<dim>              &mapping,
@@ -75,9 +61,6 @@ namespace Portable
     void
     compute_diagonal() override;
 
-    void
-    setup_dof_indices_per_color();
-
     std::shared_ptr<
       DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
     get_matrix_diagonal_inverse() const override;
@@ -97,11 +80,6 @@ namespace Portable
     const std::shared_ptr<const Utilities::MPI::Partitioner> &
     get_vector_partitioner() const override;
 
-    void
-    compute_G_tensors();
-
-    void
-    compute_face_info();
 
   private:
     using TeamHandle =
@@ -116,8 +94,8 @@ namespace Portable
                    Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     static constexpr unsigned int n_local_dofs    = Utilities::pow(fe_degree + 1, dim);
-    static const unsigned int     n_q_points      = Utilities::pow(n_q_points_1d, dim);
-    static const unsigned int     n_q_points_face = Utilities::pow(n_q_points_1d, dim - 1);
+    static constexpr unsigned int n_q_points      = Utilities::pow(n_q_points_1d, dim);
+    static constexpr unsigned int n_q_points_face = Utilities::pow(n_q_points_1d, dim - 1);
 
 
     MatrixFree<dim, Number> matrix_free;
@@ -130,35 +108,41 @@ namespace Portable
 
     std::unique_ptr<QGauss<1>> quadrature_1d;
 
+    internal::MatrixFreeFunctions::UnivariateShapeData<Number> shape_data;
+
     std::shared_ptr<
       DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
       inverse_diagonal_entries;
 
-    std::vector<Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>>
-      dof_indices_per_color;
+    // cell data
+    Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space> dof_indices;
+    std::vector<std::pair<unsigned int, unsigned int>>                cell_local_info;
+    std::vector<std::vector<unsigned int>>                            cell_level_index_map;
+    std::array<unsigned int, n_local_dofs>                            lexicographic_numbering;
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space>
+      geometric_transformation_symmetric_cell;
 
-    // Kokkos::View<Number **, MemorySpace::Default::kokkos_space>  quad_values;
-    std::vector<Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>> face_values_at_quads;
-    std::vector<Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>>
-      face_normal_derivatives_at_quads;
 
+    // face interpolation data
+    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> face_values_at_quads;
+    Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> face_normal_derivatives_at_quads;
     Kokkos::View<Number ***, MemorySpace::Default::kokkos_space> interpolate_quad_to_boundary;
 
-    std::vector<Kokkos::View<Number *, MemorySpace::Default::kokkos_space>> G_tensors;
-
-    // 0 - inner faces, 1 - boundary faces
+    // face data: 0 - inner faces, 1 - boundary faces
+    std::array<std::vector<std::array<unsigned int, 5>>, 2> face_info_cpu;
     Kokkos::Array<Kokkos::View<unsigned int *[5], MemorySpace::Default::kokkos_space>, 2> face_info;
-    Kokkos::View<unsigned int * [2 * dim], MemorySpace::Default::kokkos_space> face_info_per_cell;
     Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jacobians_times_normal_inner_face;
     Kokkos::View<Number *, MemorySpace::Default::kokkos_space> jacobians_times_normal_boundary_face;
     Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space> jxw_inner_face;
     Kokkos::View<Number *, MemorySpace::Default::kokkos_space>    jxw_boundary_face;
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space>    penalty_parameters_inner_face;
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space>    penalty_parameters_boundary_face;
 
+    void
+    compute_cell_info();
 
-    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> penalty_parameters_inner_face;
-    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> penalty_parameters_boundary_face;
-
-    internal::MatrixFreeFunctions::UnivariateShapeData<Number> shape_data;
+    void
+    compute_face_info();
 
     Number
     get_penalty_factor(const double cell_extent_minus, const double cell_extent_plus) const
@@ -166,6 +150,16 @@ namespace Portable
       return fe_degree * (fe_degree + 1.) * 0.5 * (1. / cell_extent_minus + 1. / cell_extent_plus);
     }
   };
+
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::LaplaceOperatorDG(
+    const Mapping<dim>              &mapping,
+    const DoFHandler<dim>           &dof_handler,
+    const AffineConstraints<Number> &constraints,
+    bool                             overlap_communication_computation)
+  {
+    this->reinit(mapping, dof_handler, constraints, overlap_communication_computation);
+  }
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
@@ -181,7 +175,6 @@ namespace Portable
     this->mapping     = &mapping;
     this->dof_handler = &dof_handler;
 
-
     this->quadrature_1d = std::make_unique<QGauss<1>>(n_q_points_1d);
 
     additional_data.mapping_update_flags =
@@ -195,14 +188,18 @@ namespace Portable
                                                                           dof_handler.get_fe());
 
       shape_data.reinit(shape_info.get_shape_data());
+
+      AssertDimension(shape_info.lexicographic_numbering.size(), n_local_dofs);
+
+      for (unsigned int i = 0; i < n_local_dofs; ++i)
+        {
+          this->lexicographic_numbering[i] = shape_info.lexicographic_numbering[i];
+        }
     }
 
-    setup_dof_indices_per_color();
+    compute_cell_info();
 
-    compute_G_tensors();
-
-    const auto        &colored_graph = matrix_free.get_colored_graph();
-    const unsigned int n_colors      = colored_graph.size();
+    compute_face_info();
 
     // We need to compute the values of the shape functions at the quadrature points on the boundary
     // for the face integrals
@@ -237,50 +234,307 @@ namespace Portable
       Kokkos::deep_copy(interpolate_quad_to_boundary, interpolate_quad_to_boundary_host);
       Kokkos::fence();
 
-      constexpr int n_q_points_per_face = Utilities::pow(n_q_points_1d, dim - 1);
+      face_values_at_quads = Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("face_values_at_quads", Kokkos::WithoutInitializing),
+        n_q_points_face,
+        2 * dim,
+        cell_local_info.size());
 
-      face_values_at_quads.resize(n_colors);
-      face_normal_derivatives_at_quads.resize(n_colors);
+      face_normal_derivatives_at_quads =
+        Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
+          Kokkos::view_alloc("face_normal_derivatives_at_quads", Kokkos::WithoutInitializing),
+          n_q_points_face,
+          2 * dim,
+          cell_local_info.size());
+    }
+  }
 
-      for (unsigned int color = 0; color < n_colors; ++color)
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
+  {
+    src.update_ghost_values();
+
+    const unsigned int locally_relevant_size = cell_local_info.size() * n_local_dofs;
+
+    DeviceVector<Number> src_device(src.get_values(), locally_relevant_size),
+      dst_device(dst.get_values(), locally_relevant_size);
+
+    constexpr bool is_serial =
+      std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
+
+    unsigned int n_cells_per_batch = numbers::invalid_unsigned_int;
+    unsigned int n_blocks          = numbers::invalid_unsigned_int;
+    unsigned int threads_per_block = numbers::invalid_unsigned_int;
+    if (is_serial)
+      {
+        n_cells_per_batch = 1u;
+        n_blocks          = 1u;
+        threads_per_block = 1u;
+      }
+
+    const unsigned int n_cells          = cell_local_info.size();
+    const unsigned int n_inner_faces    = face_info_cpu[0].size();
+    const unsigned int n_boundary_faces = face_info_cpu[1].size();
+
+
+    if (n_cells > 0)
+      {
+        BK3::DG::compute_cell<dim, fe_degree + 1, n_q_points_1d, Number>(
+          shape_data.shape_values,
+          shape_data.shape_gradients_collocation,
+          geometric_transformation_symmetric_cell,
+          src_device,
+          dst_device,
+          interpolate_quad_to_boundary,
+          face_values_at_quads,
+          face_normal_derivatives_at_quads,
+          dof_indices,
+          n_cells,
+          n_cells_per_batch,
+          n_blocks,
+          threads_per_block);
+
+        Kokkos::fence();
+
+
+        if (n_inner_faces > 0)
+          BK3::DG::compute_inner_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
+            shape_data.shape_gradients_collocation,
+            jacobians_times_normal_inner_face,
+            jxw_inner_face,
+            penalty_parameters_inner_face,
+            face_values_at_quads,
+            face_normal_derivatives_at_quads,
+            face_info[0],
+            n_inner_faces,
+            n_cells_per_batch,
+            n_blocks,
+            threads_per_block);
+
+        if (n_boundary_faces > 0)
+          BK3::DG::compute_boundary_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
+            shape_data.shape_gradients_collocation,
+            jacobians_times_normal_boundary_face,
+            jxw_boundary_face,
+            penalty_parameters_boundary_face,
+            face_values_at_quads,
+            face_normal_derivatives_at_quads,
+            face_info[1],
+            n_boundary_faces,
+            n_cells_per_batch,
+            n_blocks,
+            threads_per_block);
+
+
+
+        BK3::DG::distribute_face_to_global<dim, fe_degree + 1, n_q_points_1d, Number>(
+          shape_data.shape_values,
+          dst_device,
+          interpolate_quad_to_boundary,
+          face_values_at_quads,
+          face_normal_derivatives_at_quads,
+          dof_indices,
+          n_cells,
+          n_cells_per_batch,
+          n_blocks,
+          threads_per_block);
+      }
+
+    // dst.compress(VectorOperation::insert);
+    src.zero_out_ghost_values();
+    dst.zero_out_ghost_values();
+
+
+    matrix_free.copy_constrained_values(src, dst);
+  }
+
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult_dummy(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+    const bool                                                              ghost_exchange_on,
+    const bool                                                              computation_on) const
+  {
+    (void)dst;
+    (void)src;
+    (void)ghost_exchange_on;
+    (void)computation_on;
+
+
+
+    // dst = 0.;
+
+    // LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number> cell_operator;
+
+    // this->cell_loop_dummy(cell_operator, src, dst, ghost_exchange_on, computation_on);
+
+    // matrix_free.copy_constrained_values(src, dst);
+  }
+
+
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_cell_info()
+  {
+    const auto &triangulation = dof_handler->get_triangulation();
+
+    cell_level_index_map.resize(triangulation.n_levels());
+
+    for (unsigned int level = 0; level < triangulation.n_levels(); ++level)
+      cell_level_index_map[level].resize(triangulation.n_raw_cells(level));
+
+    this->cell_local_info.clear();
+
+    std::vector<unsigned char> cell_touched(triangulation.n_active_cells(), 0);
+
+    unsigned int counter = 0;
+
+    for (const auto &cell : triangulation.active_cell_iterators())
+      if (cell->is_locally_owned())
         {
-          face_values_at_quads[color] =
-            Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
-              Kokkos::view_alloc("face_values_at_quads_color_" + std::to_string(color),
-                                 Kokkos::WithoutInitializing),
-              n_q_points_per_face,
-              2 * dim,
-              colored_graph[color].size());
-
-          face_normal_derivatives_at_quads[color] =
-            Kokkos::View<Number ***, MemorySpace::Default::kokkos_space>(
-              Kokkos::view_alloc("face_normal_derivatives_at_quads_color_" + std::to_string(color),
-                                 Kokkos::WithoutInitializing),
-              n_q_points_per_face,
-              2 * dim,
-              colored_graph[color].size());
+          cell_touched[cell->index()]                        = 1;
+          cell_level_index_map[cell->level()][cell->index()] = counter++;
+          cell_local_info.push_back(std::make_pair(cell->level(), cell->index()));
         }
+
+    for (const auto &cell : triangulation.active_cell_iterators())
+      {
+        if (cell->is_locally_owned())
+          {
+            for (unsigned int face : cell->face_indices())
+              {
+                if (!cell->at_boundary(face) || cell->has_periodic_neighbor(face))
+                  {
+                    const auto neighbor = cell->neighbor_or_periodic_neighbor(face);
+
+                    AssertThrow(neighbor->is_artificial() == false,
+                                ExcMessage("Neighbor should be either locally owned or ghost"));
+
+                    if (neighbor->is_active())
+                      {
+                        if (cell_touched[neighbor->index()] == 0)
+                          {
+                            cell_touched[neighbor->index()]                            = 1;
+                            cell_level_index_map[neighbor->level()][neighbor->index()] = counter++;
+
+                            cell_local_info.push_back(
+                              std::make_pair(neighbor->level(), neighbor->index()));
+                          }
+                      }
+                    else
+                      AssertThrow(false, ExcMessage("The neighbor cell is more refined than us."));
+                  }
+              }
+          }
+      }
+
+    {
+      this->dof_indices = Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("dof_indices", Kokkos::WithoutInitializing),
+        n_local_dofs,
+        cell_local_info.size());
+
+      auto dof_indices_host = Kokkos::create_mirror_view(this->dof_indices);
+
+      const auto &partitioner = matrix_free.get_vector_partitioner();
+
+      std::vector<types::global_dof_index> local_dof_indices(n_local_dofs);
+
+      for (unsigned int cell_id = 0; cell_id < this->cell_local_info.size(); ++cell_id)
+        {
+          const auto &cell =
+            typename dealii::DoFHandler<dim>::active_cell_iterator(&triangulation,
+                                                                   cell_local_info[cell_id].first,
+                                                                   cell_local_info[cell_id].second,
+                                                                   dof_handler);
+
+          cell->get_dof_indices(local_dof_indices);
+
+          if (partitioner)
+            for (auto &index : local_dof_indices)
+              index = partitioner->global_to_local(index);
+
+          for (unsigned int i = 0; i < n_local_dofs; ++i)
+            {
+              const unsigned int local_dof = local_dof_indices[lexicographic_numbering[i]];
+              if (this->constraints->is_constrained(local_dof))
+                dof_indices_host(i, cell_id) = numbers::invalid_unsigned_int;
+              else
+                dof_indices_host(i, cell_id) = local_dof;
+            }
+        }
+
+      Kokkos::deep_copy(dof_indices, dof_indices_host);
+      Kokkos::fence();
     }
 
-    compute_face_info();
+    {
+      constexpr int symmetric_tensor_dim = (dim * (dim + 1)) / 2;
+
+      this->geometric_transformation_symmetric_cell =
+        Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
+          Kokkos::view_alloc("geometric_transformation_symmetric_cell",
+                             Kokkos::WithoutInitializing),
+          cell_local_info.size() * symmetric_tensor_dim * n_q_points);
+
+      auto geometry_tensor_host =
+        Kokkos::create_mirror_view(geometric_transformation_symmetric_cell);
+
+      Quadrature<dim> quadrature(*quadrature_1d);
+      FEValues<dim>   fe_values(*mapping,
+                                dof_handler->get_fe(),
+                                quadrature,
+                                update_gradients | update_JxW_values | update_jacobians);
+
+      for (unsigned int cell_id = 0; cell_id < this->cell_local_info.size(); ++cell_id)
+        {
+          const auto &cell = typename dealii::Triangulation<dim>::active_cell_iterator(
+            &triangulation, cell_local_info[cell_id].first, cell_local_info[cell_id].second);
+
+          fe_values.reinit(cell);
+
+          for (unsigned int q = 0; q < n_q_points; ++q)
+            {
+              const Tensor<2, dim, Number> inv_jacobian(fe_values.jacobian(q).covariant_form());
+              const Number                 jxw = fe_values.JxW(q);
+
+              Number components[symmetric_tensor_dim];
+
+              int idx = 0;
+              for (unsigned int d1 = 0; d1 < dim; ++d1)
+                for (int d2 = d1; d2 < dim; ++d2)
+                  {
+                    Number sum = 0;
+                    for (int k = 0; k < dim; ++k)
+                      sum += inv_jacobian[k][d1] * inv_jacobian[k][d2];
+                    components[idx] = jxw * sum;
+                    ++idx;
+                  }
+
+              for (int c = 0; c < symmetric_tensor_dim; ++c)
+                geometry_tensor_host[cell_id * symmetric_tensor_dim * n_q_points + c * n_q_points +
+                                     q] = components[c];
+            }
+        }
+
+      Kokkos::deep_copy(geometric_transformation_symmetric_cell, geometry_tensor_host);
+      Kokkos::fence();
+    }
   }
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
   LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_face_info()
   {
-    unsigned int cell_counter          = 0;
-    unsigned int inner_face_counter    = 0;
-    unsigned int boundary_face_counter = 0;
-
-    std::vector<std::array<unsigned int, 5>>       inner_faces_v;
-    std::vector<std::array<unsigned int, 5>>       boundary_faces_v;
-    std::vector<std::array<unsigned int, 2 * dim>> faces_per_cell;
-
-    std::vector<std::pair<unsigned int, unsigned int>> cell_level_index;
-
-
     const auto &triangulation = dof_handler->get_triangulation();
+
+
+    this->face_info_cpu[0].clear();
+    this->face_info_cpu[1].clear();
 
     // get interior and boundary faces information
     // 0 - interior cell
@@ -289,103 +543,76 @@ namespace Portable
     // 3 - exterior face no
     // 4 - face orientation
     {
-      std::vector<bool> visited_face(triangulation.n_raw_faces());
+      std::vector<unsigned char> visited_face(triangulation.n_raw_faces(), 0);
 
-      std::array<unsigned int, 2 * dim> f_ids_on_cell;
-
-      for (const auto &cell : triangulation.active_cell_iterators())
+      for (const auto &cell : dof_handler->active_cell_iterators())
         {
-          if (!cell->is_locally_owned())
-            continue;
-
-
-          for (const auto f : cell->face_indices())
+          if (cell->is_locally_owned())
             {
-              const auto &face = cell->face(f);
-
-              const unsigned int face_index = face->index();
-
-              f_ids_on_cell[f] = face_index;
-
-              if (visited_face[face_index])
-                continue;
-
-              visited_face[face_index] = true;
-
-              if (face->at_boundary())
+              for (const auto f : cell->face_indices())
                 {
-                  ++boundary_face_counter;
-                  std::array<unsigned int, 5> info;
-                  info[0] = cell_counter;
-                  info[1] = numbers::invalid_unsigned_int;
-                  info[2] = f;
-                  info[3] = face->boundary_id();
-                  info[4] = 0;
+                  const auto &face = cell->face(f);
 
-                  boundary_faces_v.push_back(info);
-                }
-              else
-                {
-                  ++inner_face_counter;
-                  typename dealii::Triangulation<dim>::cell_iterator neighbor =
-                    cell->neighbor_or_periodic_neighbor(f);
+                  const unsigned int face_index = face->index();
 
-                  const unsigned int neighbor_face_no = cell->has_periodic_neighbor(f) ?
-                                                          cell->periodic_neighbor_face_no(f) :
-                                                          cell->neighbor_face_no(f);
+                  if (visited_face[face_index] == 1)
+                    continue;
 
-                  std::array<unsigned int, 5> info;
-                  info[0] = cell_counter;
-                  info[1] = neighbor->index();
-                  info[2] = f;
-                  info[3] = neighbor_face_no;
-                  info[4] = 0;
+                  visited_face[face_index] = 1;
 
-                  inner_faces_v.push_back(info);
+                  if (face->at_boundary())
+                    {
+                      std::array<unsigned int, 5> info;
+                      info[0] = cell_level_index_map[cell->level()][cell->index()];
+                      info[1] = numbers::invalid_unsigned_int;
+                      info[2] = f;
+                      info[3] = face->boundary_id();
+                      info[4] = 0;
+
+                      face_info_cpu[1].push_back(info);
+                    }
+                  else
+                    {
+                      typename dealii::Triangulation<dim>::cell_iterator neighbor =
+                        cell->neighbor_or_periodic_neighbor(f);
+
+                      const unsigned int neighbor_face_no = cell->has_periodic_neighbor(f) ?
+                                                              cell->periodic_neighbor_face_no(f) :
+                                                              cell->neighbor_face_no(f);
+
+                      std::array<unsigned int, 5> info;
+                      info[0] = cell_level_index_map[cell->level()][cell->index()];
+                      info[1] = cell_level_index_map[neighbor->level()][neighbor->index()];
+                      info[2] = f;
+                      info[3] = neighbor_face_no;
+                      info[4] = 0;
+
+                      face_info_cpu[0].push_back(info);
+                    }
                 }
             }
-
-          ++cell_counter;
-          faces_per_cell.push_back(f_ids_on_cell);
-          cell_level_index.push_back({cell->level(), cell->index()});
         }
 
-      Kokkos::View<unsigned int *[5],
-                   Kokkos::LayoutRight,
-                   Kokkos::HostSpace,
-                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-        inner_faces_info_host(inner_faces_v.data()->data(), inner_faces_v.size());
+      std::string name_handle[] = {"inner_faces_info", "boundary_faces_info"};
 
-      Kokkos::View<unsigned int *[5],
-                   Kokkos::LayoutRight,
-                   Kokkos::HostSpace,
-                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-        boundary_faces_info_host(boundary_faces_v.data()->data(), boundary_faces_v.size());
+      for (unsigned int i = 0; i < 2; ++i)
+        {
+          Kokkos::View<unsigned int *[5],
+                       Kokkos::LayoutRight,
+                       Kokkos::HostSpace,
+                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+            faces_info_host(face_info_cpu[i].data()->data(), face_info_cpu[i].size());
 
-      Kokkos::View<unsigned int * [2 * dim],
-                   Kokkos::LayoutRight,
-                   Kokkos::HostSpace,
-                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-        face_info_per_cell_host(faces_per_cell.data()->data(), faces_per_cell.size());
+          face_info[i] = Kokkos::View<unsigned int *[5], MemorySpace::Default::kokkos_space>(
+            Kokkos::view_alloc(name_handle[i], Kokkos::WithoutInitializing),
+            face_info_cpu[i].size());
 
-      face_info[0] = Kokkos::View<unsigned int *[5], MemorySpace::Default::kokkos_space>(
-        Kokkos::view_alloc("inner_faces_info", Kokkos::WithoutInitializing), inner_faces_v.size());
-
-      face_info[1] = Kokkos::View<unsigned int *[5], MemorySpace::Default::kokkos_space>(
-        Kokkos::view_alloc("boundary_faces_info", Kokkos::WithoutInitializing),
-        boundary_faces_v.size());
-
-      face_info_per_cell =
-        Kokkos::View<unsigned int * [2 * dim], MemorySpace::Default::kokkos_space>(
-          Kokkos::view_alloc("face_info_per_cell", Kokkos::WithoutInitializing),
-          faces_per_cell.size());
-
-      Kokkos::deep_copy(face_info[0], inner_faces_info_host);
-      Kokkos::deep_copy(face_info[1], boundary_faces_info_host);
-      Kokkos::deep_copy(face_info_per_cell, face_info_per_cell_host);
+          Kokkos::deep_copy(face_info[i], faces_info_host);
+        }
 
       Kokkos::fence();
     }
+
     {
       Quadrature<dim - 1> face_quadrature(*quadrature_1d);
       FEFaceValues<dim>   fe_face_values(*mapping,
@@ -399,32 +626,34 @@ namespace Portable
                                                   update_gradients | update_JxW_values |
                                                     update_normal_vectors | update_jacobians);
 
+      const unsigned int n_inner_faces    = face_info_cpu[0].size();
+      const unsigned int n_boundary_faces = face_info_cpu[1].size();
 
       jacobians_times_normal_inner_face =
         Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
           Kokkos::view_alloc("jacobian_times_normal_inner_face", Kokkos::WithoutInitializing),
-          inner_faces_v.size() * n_q_points_face * dim);
+          n_inner_faces * dim * n_q_points_face);
+
+      jxw_inner_face = Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("jxw_inner_face", Kokkos::WithoutInitializing),
+        n_inner_faces * n_q_points_face);
+
+      penalty_parameters_inner_face = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("penalty_parameters_inner_face", Kokkos::WithoutInitializing),
+        n_inner_faces);
 
       jacobians_times_normal_boundary_face =
         Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
           Kokkos::view_alloc("jacobian_times_normal_boundary_face", Kokkos::WithoutInitializing),
-          boundary_faces_v.size() * n_q_points_face * dim);
-
-      jxw_inner_face = Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
-        Kokkos::view_alloc("jxw_inner_face", Kokkos::WithoutInitializing),
-        inner_faces_v.size() * n_q_points_face);
+          n_boundary_faces * dim * n_q_points_face);
 
       jxw_boundary_face = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
         Kokkos::view_alloc("jxw_boundary_face", Kokkos::WithoutInitializing),
-        boundary_faces_v.size() * n_q_points_face);
-
-      penalty_parameters_inner_face = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-        Kokkos::view_alloc("penalty_parameters_inner_face", Kokkos::WithoutInitializing),
-        inner_faces_v.size());
+        n_boundary_faces * n_q_points_face);
 
       penalty_parameters_boundary_face = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
         Kokkos::view_alloc("penalty_parameters_boundary_face", Kokkos::WithoutInitializing),
-        boundary_faces_v.size());
+        n_boundary_faces);
 
       auto jacobians_times_normal_inner_face_host =
         Kokkos::create_mirror_view(jacobians_times_normal_inner_face);
@@ -437,20 +666,18 @@ namespace Portable
       auto penalty_parameters_boundary_face_host =
         Kokkos::create_mirror_view(penalty_parameters_boundary_face);
 
-      for (unsigned int f = 0; f < inner_faces_v.size(); ++f)
+      for (unsigned int f = 0; f < n_inner_faces; ++f)
         {
-          const unsigned int cell_minus = inner_faces_v[f][0];
-          const unsigned int cell_plus  = inner_faces_v[f][1];
-          const unsigned int f_minus    = inner_faces_v[f][2];
-          const unsigned int f_plus     = inner_faces_v[f][3];
+          const unsigned int cell_minus = face_info_cpu[0][f][0];
+          const unsigned int cell_plus  = face_info_cpu[0][f][1];
+          const unsigned int f_minus    = face_info_cpu[0][f][2];
+          const unsigned int f_plus     = face_info_cpu[0][f][3];
 
           const typename dealii::Triangulation<dim>::cell_iterator cell_it_minus(
-            &triangulation,
-            cell_level_index[cell_minus].first,
-            cell_level_index[cell_minus].second);
+            &triangulation, cell_local_info[cell_minus].first, cell_local_info[cell_minus].second);
 
           const typename dealii::Triangulation<dim>::cell_iterator cell_it_plus(
-            &triangulation, cell_level_index[cell_plus].first, cell_level_index[cell_plus].second);
+            &triangulation, cell_local_info[cell_plus].first, cell_local_info[cell_plus].second);
 
           // compute penalty factors
           {
@@ -493,15 +720,15 @@ namespace Portable
               }
           }
         }
-      for (unsigned int f = 0; f < boundary_faces_v.size(); ++f)
+      for (unsigned int f = 0; f < n_boundary_faces; ++f)
         {
-          const unsigned int cell = boundary_faces_v[f][0];
-          const unsigned int face = boundary_faces_v[f][2];
+          const unsigned int cell = face_info_cpu[1][f][0];
+          const unsigned int face = face_info_cpu[1][f][2];
 
-          Assert(boundary_faces_v[f][1] == numbers::invalid_unsigned_int, ExcInternalError());
+          Assert(face_info_cpu[1][f][1] == numbers::invalid_unsigned_int, ExcInternalError());
 
           const typename dealii::Triangulation<dim>::cell_iterator cell_it(
-            &triangulation, cell_level_index[cell].first, cell_level_index[cell].second);
+            &triangulation, cell_local_info[cell].first, cell_local_info[cell].second);
 
           // compute penalty factors
           {
@@ -541,257 +768,6 @@ namespace Portable
       Kokkos::fence();
     }
   }
-
-  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
-  void
-  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult(
-    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
-    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
-  {
-    dst = 0.;
-
-    DeviceVector<Number> src_device(src.get_values(), src.locally_owned_size()),
-      dst_device(dst.get_values(), dst.locally_owned_size());
-
-    const auto        &colored_graph = matrix_free.get_colored_graph();
-    const unsigned int n_colors      = colored_graph.size();
-
-    constexpr bool is_serial =
-      std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
-
-    unsigned int n_cells_per_batch = numbers::invalid_unsigned_int;
-    unsigned int n_blocks          = numbers::invalid_unsigned_int;
-    unsigned int threads_per_block = numbers::invalid_unsigned_int;
-    if (is_serial)
-      {
-        n_cells_per_batch = 1u;
-        n_blocks          = 1u;
-        threads_per_block = 1u;
-      }
-
-    // helper to process one color
-    auto do_color = [&](const unsigned int color)
-      {
-        const unsigned int n_cells = colored_graph[color].size();
-
-        if (n_cells > 0)
-          {
-            const auto &precomputed_data = matrix_free.get_data(color);
-
-            BK3::DG::compute_cell<dim, fe_degree + 1, n_q_points_1d, Number>(
-              shape_data.shape_values,
-              shape_data.shape_gradients_collocation,
-              G_tensors[color],
-              src_device,
-              dst_device,
-              interpolate_quad_to_boundary,
-              face_values_at_quads[color],
-              face_normal_derivatives_at_quads[color],
-              dof_indices_per_color[color],
-              n_cells,
-              n_cells_per_batch,
-              n_blocks,
-              threads_per_block);
-
-            const unsigned int n_inner_faces = face_info[0].extent(0);
-
-            BK3::DG::compute_inner_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
-              shape_data.shape_gradients_collocation,
-              jacobians_times_normal_inner_face,
-              jxw_inner_face,
-              penalty_parameters_inner_face,
-              face_values_at_quads[color],
-              face_normal_derivatives_at_quads[color],
-              face_info[0],
-              n_inner_faces,
-              n_cells_per_batch,
-              n_blocks,
-              threads_per_block);
-
-            const unsigned int n_boundary_faces = face_info[1].extent(0);
-
-            BK3::DG::compute_boundary_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
-              shape_data.shape_gradients_collocation,
-              jacobians_times_normal_boundary_face,
-              jxw_boundary_face,
-              penalty_parameters_boundary_face,
-              face_values_at_quads[color],
-              face_normal_derivatives_at_quads[color],
-              face_info[1],
-              n_boundary_faces,
-              n_cells_per_batch,
-              n_blocks,
-              threads_per_block);
-
-
-
-            BK3::DG::distribute_face_to_global<dim, fe_degree + 1, n_q_points_1d, Number>(
-              shape_data.shape_values,
-              dst_device,
-              interpolate_quad_to_boundary,
-              face_values_at_quads[color],
-              face_normal_derivatives_at_quads[color],
-              dof_indices_per_color[color],
-              n_cells,
-              n_cells_per_batch,
-              n_blocks,
-              threads_per_block);
-
-          }
-      };
-
-    if (matrix_free.use_overlap_communication_computation())
-      {
-        src.update_ghost_values_start(0);
-
-        // In parallel, it's possible that some processors do not own any
-        // cells.
-        if (colored_graph.size() > 0 && colored_graph[0].size() > 0)
-          do_color(0);
-
-        src.update_ghost_values_finish();
-
-        // In serial this color does not exist because there are no ghost
-        // cells
-        if (colored_graph.size() > 1 && colored_graph[1].size() > 0)
-          {
-            do_color(1);
-
-            // We need a synchronization point because we don't want
-            // device-aware MPI to start the MPI communication until the
-            // kernel is done.
-            Kokkos::fence();
-          }
-
-        dst.compress_start(0, VectorOperation::add);
-        // When the mesh is coarse it is possible that some processors do
-        // not own any cells
-        if (colored_graph.size() > 2 && colored_graph[2].size() > 0)
-          do_color(2);
-        dst.compress_finish(VectorOperation::add);
-      }
-    else
-      {
-        src.update_ghost_values();
-
-        for (unsigned int color = 0; color < n_colors; ++color)
-          {
-            if (colored_graph[color].size() > color)
-              do_color(color);
-          }
-        dst.compress(VectorOperation::add);
-      }
-
-    src.zero_out_ghost_values();
-    matrix_free.copy_constrained_values(src, dst);
-
-  }
-
-
-
-  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
-  void
-  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::vmult_dummy(
-    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
-    const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
-    const bool                                                              ghost_exchange_on,
-    const bool                                                              computation_on) const
-  {
-    (void)dst;
-    (void)src;
-    (void)ghost_exchange_on;
-    (void)computation_on;
-
-
-
-    // dst = 0.;
-
-    // LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number> cell_operator;
-
-    // this->cell_loop_dummy(cell_operator, src, dst, ghost_exchange_on, computation_on);
-
-    // matrix_free.copy_constrained_values(src, dst);
-  }
-
-
-  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
-  void
-  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::setup_dof_indices_per_color()
-  {
-    dealii::MemorySpace::Default::kokkos_space::execution_space exec_space;
-    const auto        &colored_graph = matrix_free.get_colored_graph();
-    const unsigned int n_colors      = colored_graph.size();
-
-    const auto &dof_handler = matrix_free.get_dof_handler();
-
-    std::vector<unsigned int> lex_numbering(n_local_dofs);
-
-    {
-      const Quadrature<1> dummy_quadrature(std::vector<Point<1>>(1, Point<1>()));
-      dealii::internal::MatrixFreeFunctions::ShapeInfo<double> shape_info;
-
-      shape_info.reinit(dummy_quadrature, dof_handler.get_fe(), 0);
-      lex_numbering = shape_info.lexicographic_numbering;
-    }
-
-    this->dof_indices_per_color.clear();
-    this->dof_indices_per_color.resize(n_colors);
-
-    std::vector<types::global_dof_index> local_dof_indices(n_local_dofs);
-    std::vector<types::global_dof_index> subdomain_local_dof_indices(n_local_dofs);
-
-    const auto &partitioner = matrix_free.get_vector_partitioner();
-
-    for (unsigned int color = 0; color < n_colors; ++color)
-      {
-        if (colored_graph[color].size() > 0)
-          {
-            const auto &mf_data = matrix_free.get_data(color);
-
-            const auto &graph = colored_graph[color];
-
-            this->dof_indices_per_color[color] =
-              Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>(
-                Kokkos::view_alloc("dof_indices_" + std::to_string(color),
-                                   Kokkos::WithoutInitializing),
-                n_local_dofs,
-                mf_data.n_cells);
-
-            auto dof_indices_host = Kokkos::create_mirror_view(this->dof_indices_per_color[color]);
-
-            for (unsigned int cell_id = 0; cell_id < mf_data.n_cells; ++cell_id)
-              {
-                const auto triacell = graph[cell_id];
-
-                const typename DoFHandler<dim>::cell_iterator cell =
-                  triacell->as_dof_handler_iterator(dof_handler);
-
-                cell->get_dof_indices(local_dof_indices);
-
-                triacell->get_dof_indices(subdomain_local_dof_indices);
-
-                if (partitioner)
-                  for (auto &index : local_dof_indices)
-                    index = partitioner->global_to_local(index);
-
-                for (unsigned int i = 0; i < n_local_dofs; ++i)
-                  {
-                    const auto global_dof          = local_dof_indices[lex_numbering[i]];
-                    const auto subdomain_local_dof = subdomain_local_dof_indices[lex_numbering[i]];
-
-                    if (constraints->is_constrained(subdomain_local_dof))
-                      dof_indices_host(i, cell_id) = numbers::invalid_unsigned_int;
-                    else
-                      dof_indices_host(i, cell_id) = global_dof;
-                  }
-              }
-
-            Kokkos::deep_copy(exec_space, this->dof_indices_per_color[color], dof_indices_host);
-            Kokkos::fence();
-          }
-      }
-  }
-
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
   void
@@ -852,67 +828,6 @@ namespace Portable
                           "should be zero"));
         raw_diagonal[i] = 1. / raw_diagonal[i];
       });
-  }
-
-  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
-  void
-  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_G_tensors()
-  {
-    constexpr int symmetric_tensor_dim = (dim * (dim + 1)) / 2;
-
-    const auto        &colored_graph = matrix_free.get_colored_graph();
-    const unsigned int n_colors      = colored_graph.size();
-
-    G_tensors.resize(n_colors);
-
-    for (unsigned int color = 0; color < n_colors; ++color)
-      {
-        if (colored_graph[color].size() > 0)
-          {
-            const auto        &precomputed_data = matrix_free.get_data(color);
-            const unsigned int n_cells          = precomputed_data.n_cells;
-
-            const auto &inv_jacobian = precomputed_data.inv_jacobian;
-            const auto &JxW          = precomputed_data.JxW;
-
-            G_tensors[color] = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
-              Kokkos::view_alloc("G_tensor_color_" + std::to_string(color),
-                                 Kokkos::WithoutInitializing),
-              symmetric_tensor_dim * n_cells * n_q_points);
-
-            auto G = G_tensors[color];
-
-            Kokkos::parallel_for(
-              "Fill_G_tensor_color" + std::to_string(color),
-              Kokkos::RangePolicy<dealii::MemorySpace::Default::kokkos_space::execution_space>(
-                0, n_cells),
-              KOKKOS_LAMBDA(const int cell_id) {
-                for (unsigned int q_point = 0; q_point < n_q_points; q_point++)
-                  {
-                    Number components[symmetric_tensor_dim];
-
-                    int idx = 0;
-                    for (int d1 = 0; d1 < dim; ++d1)
-                      for (int d2 = d1; d2 < dim; ++d2)
-                        {
-                          Number sum = 0;
-                          for (int k = 0; k < dim; ++k)
-                            sum += inv_jacobian(q_point, cell_id, k, d1) *
-                                   inv_jacobian(q_point, cell_id, k, d2);
-                          components[idx] = JxW(q_point, cell_id) * sum;
-                          ++idx;
-                        }
-
-                    for (int c = 0; c < symmetric_tensor_dim; ++c)
-                      {
-                        G[cell_id * symmetric_tensor_dim * n_q_points + c * n_q_points + q_point] =
-                          components[c];
-                      }
-                  }
-              });
-            Kokkos::fence();
-          }
-      }
   }
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>

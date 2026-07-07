@@ -20,15 +20,13 @@ namespace Portable
 
     virtual void
     prolongate_and_add(
-      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
-      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const = 0;
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const = 0;
 
     virtual void
     restrict_and_add(
-      LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &dst,
-      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default>
-        &src) const = 0;
+      LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+      const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const = 0;
 
     virtual void
     reinit(const MatrixFree<dim, number>   &mf_coarse,
@@ -42,4 +40,3 @@ namespace Portable
 DEAL_II_NAMESPACE_CLOSE
 
 #endif
-
