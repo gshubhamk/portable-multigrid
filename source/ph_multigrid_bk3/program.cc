@@ -31,7 +31,7 @@
 #include <iostream>
 
 #include "multigrid/portable_geometric_transfer.h"
-#include "multigrid/portable_polynomial_tranfer.h"
+#include "multigrid/portable_polynomial_transfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
 #include "operators/portable_laplace_operator_bk3.h"
 
@@ -543,12 +543,14 @@ LaplaceProblem<dim, fe_degree>::run()
 
       if (cycle == 0)
         {
-          if (dim == 2)
             GridGenerator::hyper_cube(triangulation, 0., 1.);
-          else
-            GridGenerator::hyper_rectangle(triangulation,
-                                           Point<3>(0., 0., 0),
-                                           Point<3>(0.5, 1., 1.));
+
+          // if (dim == 2)
+          //   GridGenerator::hyper_cube(triangulation, 0., 1.);
+          // else
+          //   GridGenerator::hyper_rectangle(triangulation,
+          //                                  Point<3>(0., 0., 0),
+          //                                  Point<3>(0.5, 1., 1.));
 
           triangulation.refine_global(3 - dim);
         }
@@ -596,7 +598,7 @@ main(int argc, char *argv[])
     {
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
-      const int dim           = 3;
+      const int dim           = 2;
       const int max_fe_degree = 4;
 
       const unsigned int n_pre_smooth  = 5;

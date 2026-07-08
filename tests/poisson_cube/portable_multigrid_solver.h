@@ -13,7 +13,7 @@
 #include <deal.II/multigrid/mg_base.h>
 
 #include "multigrid/portable_geometric_transfer.h"
-#include "multigrid/portable_polynomial_tranfer.h"
+#include "multigrid/portable_polynomial_transfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
 #include "operators/portable_laplace_operator.h"
 
