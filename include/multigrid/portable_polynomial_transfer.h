@@ -1363,7 +1363,7 @@ namespace Portable
   class PolynomialTransferDispatchFactory
   {
   public:
-    static constexpr unsigned int max_degree = 4;
+    static constexpr unsigned int max_degree = 6;
 
     template <typename Runner>
     static bool

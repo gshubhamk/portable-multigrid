@@ -268,9 +268,9 @@ namespace Portable
     unsigned int n_cells_per_batch = numbers::invalid_unsigned_int;
     unsigned int n_blocks          = numbers::invalid_unsigned_int;
     unsigned int threads_per_block = numbers::invalid_unsigned_int;
+
     if (is_serial)
       {
-        n_cells_per_batch = 1u;
         n_blocks          = 1u;
         threads_per_block = 1u;
       }
@@ -343,7 +343,6 @@ namespace Portable
           threads_per_block);
       }
 
-    // dst.compress(VectorOperation::insert);
     src.zero_out_ghost_values();
     dst.zero_out_ghost_values();
 
@@ -359,20 +358,105 @@ namespace Portable
     const bool                                                              ghost_exchange_on,
     const bool                                                              computation_on) const
   {
-    (void)dst;
-    (void)src;
-    (void)ghost_exchange_on;
-    (void)computation_on;
+    if (ghost_exchange_on)
+      src.update_ghost_values();
+
+    const unsigned int locally_relevant_size = cell_local_info.size() * n_local_dofs;
+
+    DeviceVector<Number> src_device(src.get_values(), locally_relevant_size),
+      dst_device(dst.get_values(), locally_relevant_size);
+
+    constexpr bool is_serial =
+      std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
+
+    unsigned int n_cells_per_batch = numbers::invalid_unsigned_int;
+    unsigned int n_blocks          = numbers::invalid_unsigned_int;
+    unsigned int threads_per_block = numbers::invalid_unsigned_int;
+    if (is_serial)
+      {
+        n_cells_per_batch = 1u;
+        n_blocks          = 1u;
+        threads_per_block = 1u;
+      }
+
+    const unsigned int n_cells          = cell_local_info.size();
+    const unsigned int n_inner_faces    = face_info_cpu[0].size();
+    const unsigned int n_boundary_faces = face_info_cpu[1].size();
+
+
+    if (computation_on)
+      {
+        if (n_cells > 0)
+          {
+            BK3::DG::compute_cell<dim, fe_degree + 1, n_q_points_1d, Number>(
+              shape_data.shape_values,
+              shape_data.shape_gradients_collocation,
+              geometric_transformation_symmetric_cell,
+              src_device,
+              dst_device,
+              interpolate_quad_to_boundary,
+              face_values_at_quads,
+              face_normal_derivatives_at_quads,
+              dof_indices,
+              n_cells,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+
+            Kokkos::fence();
+
+
+            if (n_inner_faces > 0)
+              BK3::DG::compute_inner_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
+                shape_data.shape_gradients_collocation,
+                jacobians_times_normal_inner_face,
+                jxw_inner_face,
+                penalty_parameters_inner_face,
+                face_values_at_quads,
+                face_normal_derivatives_at_quads,
+                face_info[0],
+                n_inner_faces,
+                n_cells_per_batch,
+                n_blocks,
+                threads_per_block);
+
+            if (n_boundary_faces > 0)
+              BK3::DG::compute_boundary_faces<dim, fe_degree + 1, n_q_points_1d, Number>(
+                shape_data.shape_gradients_collocation,
+                jacobians_times_normal_boundary_face,
+                jxw_boundary_face,
+                penalty_parameters_boundary_face,
+                face_values_at_quads,
+                face_normal_derivatives_at_quads,
+                face_info[1],
+                n_boundary_faces,
+                n_cells_per_batch,
+                n_blocks,
+                threads_per_block);
 
 
 
-    // dst = 0.;
+            BK3::DG::distribute_face_to_global<dim, fe_degree + 1, n_q_points_1d, Number>(
+              shape_data.shape_values,
+              dst_device,
+              interpolate_quad_to_boundary,
+              face_values_at_quads,
+              face_normal_derivatives_at_quads,
+              dof_indices,
+              n_cells,
+              n_cells_per_batch,
+              n_blocks,
+              threads_per_block);
+          }
+      }
 
-    // LocalLaplaceOperator<dim, fe_degree, n_q_points_1d, Number> cell_operator;
+    if (ghost_exchange_on)
+      {
+        src.zero_out_ghost_values();
+        dst.zero_out_ghost_values();
 
-    // this->cell_loop_dummy(cell_operator, src, dst, ghost_exchange_on, computation_on);
-
-    // matrix_free.copy_constrained_values(src, dst);
+        matrix_free.copy_constrained_values(src, dst);
+      }
   }
 
 
@@ -499,8 +583,8 @@ namespace Portable
 
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
-              const Tensor<2, dim, Number> inv_jacobian(fe_values.jacobian(q).covariant_form());
-              const Number                 jxw = fe_values.JxW(q);
+              const Tensor<2, dim, double> inv_jacobian(fe_values.jacobian(q).covariant_form());
+              const double                 jxw = fe_values.JxW(q);
 
               Number components[symmetric_tensor_dim];
 
@@ -694,15 +778,15 @@ namespace Portable
               {
                 const Tensor<1, dim> n_minus = fe_face_values.normal_vector(q);
 
-                const Tensor<2, dim, Number> inv_jacobian_minus(
+                const Tensor<2, dim, double> inv_jacobian_minus(
                   fe_face_values.jacobian(q).covariant_form());
 
-                const Tensor<2, dim, Number> inv_jacobian_plus(
+                const Tensor<2, dim, double> inv_jacobian_plus(
                   fe_face_values_neighbor.jacobian(q).covariant_form());
 
-                Tensor<1, dim, Number> jac_x_n_minus = inv_jacobian_minus * n_minus;
+                Tensor<1, dim, double> jac_x_n_minus = inv_jacobian_minus * n_minus;
 
-                Tensor<1, dim, Number> jac_x_n_plus = inv_jacobian_plus * n_minus;
+                Tensor<1, dim, double> jac_x_n_plus = inv_jacobian_plus * n_minus;
 
                 jxw_inner_face_host(f * n_q_points_face + q, 0) = fe_face_values.JxW(q);
 
@@ -743,10 +827,10 @@ namespace Portable
             {
               const Tensor<1, dim> n = fe_face_values.normal_vector(q);
 
-              const Tensor<2, dim, Number> inv_jacobian(
+              const Tensor<2, dim, double> inv_jacobian(
                 fe_face_values.jacobian(q).covariant_form());
 
-              Tensor<1, dim, Number> jac_x_n = inv_jacobian * n;
+              Tensor<1, dim, double> jac_x_n = inv_jacobian * n;
 
               jxw_boundary_face_host(f * n_q_points_face + q) = fe_face_values.JxW(q);
 

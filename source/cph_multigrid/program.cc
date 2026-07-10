@@ -228,7 +228,6 @@ LaplaceProblem<dim, fe_degree>::setup_dofs()
 
       if (level < coarse_triangulations.size())
         dof_h.distribute_dofs(*p_level_fes[0]);
-      else if (level < level_dof_handlers.max_level())
         dof_h.distribute_dofs(*p_level_fes[level + 1 - coarse_triangulations.size()]);
       else
         dof_h.distribute_dofs(fe);
@@ -560,7 +559,7 @@ main(int argc, char *argv[])
     {
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
-      const int dim           = 2;
+      const int dim           = 3;
       const int max_fe_degree = 4;
 
       const unsigned int n_pre_smooth  = 5;

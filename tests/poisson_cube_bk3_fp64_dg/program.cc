@@ -9,6 +9,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
 
+#include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_q.h>
 
 #include <deal.II/grid/grid_generator.h>
@@ -32,10 +33,12 @@
 #include <iostream>
 #include <memory>
 
+#include "multigrid/portable_continuous_transfer.h"
 #include "multigrid/portable_geometric_transfer.h"
 #include "multigrid/portable_polynomial_transfer.h"
 #include "multigrid/portable_v_cycle_multigrid.h"
 #include "operators/portable_laplace_operator_bk3.h"
+#include "operators/portable_laplace_operator_dg.h"
 #include "portable_multigrid_solver.h"
 
 namespace multigrid
@@ -121,7 +124,8 @@ namespace multigrid
 
     parallel::distributed::Triangulation<dim> triangulation;
 
-    FE_Q<dim>       fe;
+    MappingQ<dim>   mapping;
+    FE_DGQ<dim>     fe;
     DoFHandler<dim> dof_handler;
 
     IndexSet locally_owned_dofs;
@@ -209,6 +213,7 @@ namespace multigrid
   LaplaceProblem<dim, fe_degree>::LaplaceProblem()
     : mpi_communicator(MPI_COMM_WORLD)
     , triangulation(mpi_communicator)
+    , mapping(fe_degree)
     , fe(fe_degree)
     , dof_handler(triangulation)
     , setup_time(0.)
@@ -297,7 +302,7 @@ namespace multigrid
     for (unsigned int level = 0; level < p_levels.size(); ++level)
       p_level_fes[level] = std::make_unique<FE_Q<dim>>(p_levels[p_levels.size() - 1 - level]);
 
-    level_dof_handlers.resize(0, coarse_triangulations.size() - 1 + p_level_fes.max_level());
+    level_dof_handlers.resize(0, coarse_triangulations.size() + p_level_fes.max_level());
     level_constraints.resize(0, level_dof_handlers.max_level());
 
     for (unsigned int level = level_dof_handlers.min_level();
@@ -310,8 +315,10 @@ namespace multigrid
 
         if (level < coarse_triangulations.size())
           dof_h.distribute_dofs(*p_level_fes[0]);
-        else
+        else if (level < level_dof_handlers.max_level())
           dof_h.distribute_dofs(*p_level_fes[level + 1 - coarse_triangulations.size()]);
+        else
+          dof_h.distribute_dofs(fe);
 
         IndexSet level_relevant_dofs = DoFTools::extract_locally_relevant_dofs(dof_h);
 
@@ -321,7 +328,10 @@ namespace multigrid
 
         DoFTools::make_hanging_node_constraints(dof_h, constraints);
 
-        VectorTools::interpolate_boundary_values(dof_h, dirichlet_boundary_functions, constraints);
+        if (level < level_dof_handlers.max_level())
+          VectorTools::interpolate_boundary_values(dof_h,
+                                                   dirichlet_boundary_functions,
+                                                   constraints);
         constraints.close();
       }
 
@@ -351,7 +361,8 @@ namespace multigrid
               overlap_communication_computation);
           }
 
-        else
+        else if (level < level_dof_handlers.max_level())
+
           {
             LaplaceOperatorRunner runner{level,
                                          level_dof_handlers[level],
@@ -364,6 +375,15 @@ namespace multigrid
 
             Assert(success,
                    ExcMessage("Failed to find a matching polynomial degree in dispatcher."));
+          }
+        else
+          {
+            level_matrices[level] =
+              std::make_unique<Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, double>>(
+                mapping,
+                level_dof_handlers[level],
+                level_constraints[level],
+                overlap_communication_computation);
           }
       }
 
@@ -399,7 +419,7 @@ namespace multigrid
                                         level_constraints[level - 1],
                                         level_constraints[level]);
           }
-        else
+        else if (level < level_matrices.max_level())
           {
             const unsigned int p_coarse = p_level_fes[level - coarse_triangulations.size()]->degree;
             const unsigned int p_fine =
@@ -418,6 +438,15 @@ namespace multigrid
             Assert(success,
                    ExcMessage("Failed to find a matching polynomial degree "
                               "pair in transfer dispatcher."));
+          }
+        else
+          {
+            mg_transfers[level] =
+              std::make_unique<Portable::ContinuousTransfer<dim, fe_degree, double>>();
+            mg_transfers[level]->reinit(level_matrices[level - 1]->get_matrix_free(),
+                                        level_matrices[level]->get_matrix_free(),
+                                        level_constraints[level - 1],
+                                        level_constraints[level]);
           }
       }
     Kokkos::fence();
@@ -671,7 +700,8 @@ namespace multigrid
     if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
       for (unsigned int level = 1; level <= level_matrices.max_level(); level++)
         {
-          std::cout << "Best timings for ndof = " << level_dof_handlers[level].n_dofs() << "   on level " << level
+          std::cout << "Best timings for ndof = " << level_dof_handlers[level].n_dofs()
+                    << "   on level " << level
                     << "|  restriction = " << restrict_per_level[level - 1]
                     << "   prolongation  =  " << prolongate_per_level[level - 1] << std::endl;
         }
@@ -761,8 +791,8 @@ namespace multigrid
           }
 
         if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
-          std::cout << "Best timings for ndof = " << level_dof_handlers[level].n_dofs() << "   on level " << level
-                    << "|  ghost & compute =  " << best_mv_both
+          std::cout << "Best timings for ndof = " << level_dof_handlers[level].n_dofs()
+                    << "   on level " << level << "|  ghost & compute =  " << best_mv_both
                     << "   ghost only      =  " << best_only_ghost
                     << "   compute only    =  " << best_only_comp
 
