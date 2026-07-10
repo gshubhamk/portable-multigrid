@@ -20,6 +20,8 @@ namespace BK3
 
     using DoFIndicesView = Kokkos::View<unsigned int **, MemorySpace::Default::kokkos_space>;
 
+    using CellRangeIdView = Kokkos::View<unsigned int *, MemorySpace::Default::kokkos_space>;
+
     template <int dim, int nm, int nq, typename Number>
     void
     KokkosKernel(const DeviceView<Number> d_shape_values,
@@ -30,7 +32,8 @@ namespace BK3
                  const DoFIndicesView     dof_indices,
                  const unsigned int       n_cells,
                  const unsigned int       n_blocks          = numbers::invalid_unsigned_int,
-                 const unsigned int       threads_per_block = numbers::invalid_unsigned_int)
+                 const unsigned int       threads_per_block = numbers::invalid_unsigned_int,
+                 const CellRangeIdView    cell_range_ids    = CellRangeIdView())
     {
       if (n_cells == 0)
         return;
@@ -42,6 +45,9 @@ namespace BK3
       constexpr int shmemPerBlock = 10800; // total shared memory used per block (KB)
 
       constexpr int n_scratch_arrays = 4;
+
+      if (cell_range_ids.size() > 0)
+        AssertDimension(cell_range_ids.size(), n_cells);
 
       const int nelmt = n_cells;
 
@@ -129,7 +135,10 @@ namespace BK3
                       {
                         const int e = tid / co_dimension_size;
 
-                        const int global_cell_index = eb * nelmtPerBatch + e;
+                        unsigned int global_cell_index = eb * nelmtPerBatch + e;
+
+                        if (cell_range_ids.size() > 0)
+                          global_cell_index = cell_range_ids(global_cell_index);
 
                         if (dim == 2)
                           {
@@ -337,6 +346,12 @@ namespace BK3
                        tid += blockSize)
                     {
                       int e = tid / (co_dimension_size);
+
+                      unsigned int global_cell_index = eb * nelmtPerBatch + e;
+
+                      if (cell_range_ids.size() > 0)
+                        global_cell_index = cell_range_ids(global_cell_index);
+
                       if (dim == 2)
                         {
                           const int p = tid % nq;
@@ -357,17 +372,14 @@ namespace BK3
                               qs = 0;
 
                               // Load Geometric Factors, coalesced access
-                              Grr = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 0 * nq_total +
-                                        q * nq + p];
+                              Grr = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        0 * nq_total + q * nq + p];
 
-                              Grs = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 1 * nq_total +
-                                        q * nq + p];
+                              Grs = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        1 * nq_total + q * nq + p];
 
-                              Gss = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 2 * nq_total +
-                                        q * nq + p];
+                              Gss = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        2 * nq_total + q * nq + p];
 
                               // Multiply by D
                               for (int n = 0; n < nq; n++)
@@ -405,29 +417,23 @@ namespace BK3
                               qt = 0;
 
                               // Load Geometric Factors, coalesced access
-                              Grr = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 0 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Grr = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        0 * nq_total + r * nq * nq + q * nq + p];
 
-                              Grs = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 1 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Grs = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        1 * nq_total + r * nq * nq + q * nq + p];
 
-                              Grt = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 2 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Grt = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        2 * nq_total + r * nq * nq + q * nq + p];
 
-                              Gss = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 3 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Gss = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        3 * nq_total + r * nq * nq + q * nq + p];
 
-                              Gst = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 4 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Gst = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        4 * nq_total + r * nq * nq + q * nq + p];
 
-                              Gtt = d_G[eb * nelmtPerBatch * symmetric_tensor_dimension * nq_total +
-                                        e * symmetric_tensor_dimension * nq_total + 5 * nq_total +
-                                        r * nq * nq + q * nq + p];
+                              Gtt = d_G[global_cell_index * symmetric_tensor_dimension * nq_total +
+                                        5 * nq_total + r * nq * nq + q * nq + p];
 
                               // Multiply by D
                               for (int n = 0; n < nq; n++)
@@ -480,7 +486,7 @@ namespace BK3
                               for (int n = 0; n < nq; ++n)
                                 tmp0 += s_rqr[e * nq * nq + q * nq + n] * r_p[n];
 
-                                 for (int n = 0; n < nq; ++n)
+                              for (int n = 0; n < nq; ++n)
                                 tmp0 += r_q[n] * s_co_shape_gradients[q * nq + n];
 
                               s_wsp0[e * nq * nq + q * nq + p] = tmp0;
@@ -512,7 +518,7 @@ namespace BK3
 
                               for (int n = 0; n < nq; ++n)
                                 tmp0 += r_r[n] * s_co_shape_gradients[r * nq + n];
-                           
+
                               s_wsp1[e * nq * nq * nq + r * nq * nq + q * nq + p] = tmp0;
                             }
                         }
@@ -670,11 +676,16 @@ namespace BK3
                        tid += blockSize)
                     {
                       const int e = tid / co_dimension_size;
+
+                      unsigned int global_cell_index = eb * nelmtPerBatch + e;
+
+                      if (cell_range_ids.size() > 0)
+                        global_cell_index = cell_range_ids(global_cell_index);
                       if (dim == 2)
                         {
                           const int i = tid % nm;
 
-                          const int global_cell_index = eb * nelmtPerBatch + e;
+
 
                           for (int j = 0; j < nm; ++j)
                             {
@@ -701,7 +712,6 @@ namespace BK3
                           const int j = (tid % co_dimension_size) / nm;
                           const int i = tid % nm;
 
-                          const int global_cell_index = eb * nelmtPerBatch + e;
 
                           for (int k = 0; k < nm; ++k)
                             {
@@ -745,7 +755,9 @@ namespace BK3
                           const DoFIndicesView     dof_indices,
                           const unsigned int       n_cells,
                           unsigned int             numThreads      = numbers::invalid_unsigned_int,
-                          unsigned int             threadsPerBlock = numbers::invalid_unsigned_int)
+                          unsigned int             threadsPerBlock = numbers::invalid_unsigned_int,
+                          const CellRangeIdView    cell_range_ids  = CellRangeIdView())
+
     {
       if (n_cells == 0)
         return;
