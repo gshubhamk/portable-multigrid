@@ -37,7 +37,6 @@ namespace Portable
            const AffineConstraints<number> &constraints_coarse,
            const AffineConstraints<number> &constraints_fine) override;
 
-  private:
     void
     prolongate_and_add_internal(
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
@@ -48,6 +47,7 @@ namespace Portable
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const;
 
+  private:
     void
     setup_dof_indices();
 
