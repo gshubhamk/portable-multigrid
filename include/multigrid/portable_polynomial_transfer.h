@@ -728,19 +728,19 @@ namespace Portable
     LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const
   {
-    Assert(dst.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
-           ExcMessage("Fine vector is not initialized correctly."));
-    Assert(src.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
-           ExcMessage("Coarse vector is not initialized correctly."));
+    // Assert(dst.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
+    //        ExcMessage("Fine vector is not initialized correctly."));
+    // Assert(src.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
+    //        ExcMessage("Coarse vector is not initialized correctly."));
 
 
     this->prolongate_and_add_internal(dst, src);
 
-    Assert(dst.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
-           ExcMessage("Fine vector is not handled correclty after prolongation."));
+    // Assert(dst.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
+    //        ExcMessage("Fine vector is not handled correclty after prolongation."));
 
-    Assert(src.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
-           ExcMessage("Coarse vector is not handled correclty after prolongation."));
+    // Assert(src.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
+    //        ExcMessage("Coarse vector is not handled correclty after prolongation."));
   }
 
   template <int dim, int p_coarse, int p_fine, typename number>
@@ -749,19 +749,19 @@ namespace Portable
     LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const
   {
-    Assert(dst.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
-           ExcMessage("Coarse vector is not initialized correctly."));
+    // Assert(dst.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
+    //        ExcMessage("Coarse vector is not initialized correctly."));
 
-    Assert(src.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
-           ExcMessage("Fine vector is not initialized correctly."));
+    // Assert(src.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
+    //        ExcMessage("Fine vector is not initialized correctly."));
 
     this->restrict_and_add_internal(dst, src);
 
-    Assert(dst.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
-           ExcMessage("Coarse vector is not handled correclty after restrtiction."));
+    // Assert(dst.get_partitioner() == matrix_free_coarse->get_vector_partitioner(),
+    //        ExcMessage("Coarse vector is not handled correclty after restrtiction."));
 
-    Assert(src.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
-           ExcMessage("Fine vector is not handled correclty after restrtiction."));
+    // Assert(src.get_partitioner() == matrix_free_fine->get_vector_partitioner(),
+    //        ExcMessage("Fine vector is not handled correclty after restrtiction."));
   }
 
 

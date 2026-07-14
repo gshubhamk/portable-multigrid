@@ -1,0 +1,1934 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) Stages/2026
+Cycle 0
+           Subdomain triangulations extracted        (CPU/wall) 0.595107s/0.739586s
+    N_cells = 64
+           Total number of DoFs: 5049
+           Subdomain DoFs setup                      (CPU/wall) 0.538311s/0.566038s
+           Matrix-free operators setup               (CPU/wall) 0.006587s/0.121027s
+           MG transfers setup                        (CPU/wall) 0.003737s/0.00440267s
+           Smoothers setup                           (CPU/wall) 0.013509s/0.024405s
+           MG Preconditioners setup                  (CPU/wall) 0.002536s/0.00256098s
+           Interface system setup                    (CPU/wall) 0.033668s/0.05621s
+           BNN preconditioner setup                  (CPU/wall) 6e-05s/0.000126961s
+           Coarse matrix for BNN computed            (CPU/wall) 2.13581s/2.15039s
+           RHS assembled                             (CPU/wall) 0.000529s/0.000545993s
+           Schur RHS assembled                       (CPU/wall) 0.02495s/0.0251234s
+           setup time: 3.69028s
+residual_norm = 0.0140317
+residual_norm = 0.00450519
+residual_norm = 0.00167354
+residual_norm = 0.000740815
+residual_norm = 0.000393921
+residual_norm = 0.000185438
+residual_norm = 3.86e-05
+residual_norm = 1.26971e-05
+residual_norm = 3.82126e-06
+residual_norm = 7.86424e-07
+residual_norm = 2.44928e-07
+residual_norm = 8.55187e-08
+residual_norm = 2.06775e-08
+residual_norm = 5.24034e-09
+residual_norm = 1.18148e-09
+           Interface solver converged in 15 iterations.    (CPU/wall) 1.91235s/1.92405s
+           Subdomain solution post-processed         (CPU/wall) 0.067663s/0.0704761s
+        solution norm: 0.0232853
+           Output results                            (CPU/wall) 0.00329s/0.00625089s
+
+
+cells dofs Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+   64 5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+
+
+cells dofs subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+   64 5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+
+
+Cycle 1
+           Subdomain triangulations extracted        (CPU/wall) 0.068277s/0.0796363s
+    N_cells = 512
+           Total number of DoFs: 36465
+           Subdomain DoFs setup                      (CPU/wall) 0.137102s/0.149965s
+           Matrix-free operators setup               (CPU/wall) 0.009183s/0.00930447s
+           MG transfers setup                        (CPU/wall) 0.003852s/0.00388199s
+           Smoothers setup                           (CPU/wall) 0.012469s/0.0125338s
+           MG Preconditioners setup                  (CPU/wall) 0.006849s/0.00722738s
+           Interface system setup                    (CPU/wall) 0.002964s/0.0066973s
+           BNN preconditioner setup                  (CPU/wall) 0.000174s/0.000189091s
+           Coarse matrix for BNN computed            (CPU/wall) 3.26335s/3.28364s
+           RHS assembled                             (CPU/wall) 0.000446s/0.000455093s
+           Schur RHS assembled                       (CPU/wall) 0.043614s/0.0496845s
+           setup time: 7.29342s
+residual_norm = 0.0151317
+residual_norm = 0.00505456
+residual_norm = 0.00227634
+residual_norm = 0.00140331
+residual_norm = 0.000838765
+residual_norm = 0.000434552
+residual_norm = 9.30028e-05
+residual_norm = 3.15789e-05
+residual_norm = 1.09892e-05
+residual_norm = 4.01277e-06
+residual_norm = 1.21994e-06
+residual_norm = 5.18177e-07
+residual_norm = 1.92006e-07
+residual_norm = 6.78292e-08
+residual_norm = 2.34534e-08
+residual_norm = 9.23318e-09
+residual_norm = 3.37814e-09
+residual_norm = 1.1557e-09
+           Interface solver converged in 18 iterations.    (CPU/wall) 3.61232s/3.65022s
+           Subdomain solution post-processed         (CPU/wall) 0.051291s/0.0568029s
+        solution norm: 0.0245536
+           Output results                            (CPU/wall) 0.034203s/0.0343851s
+
+
+cells dofs  Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+   64  5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+  512 36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+
+
+cells dofs  subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+   64  5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+  512 36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+
+
+Cycle 2
+           Subdomain triangulations extracted        (CPU/wall) 0.05167s/0.0613269s
+    N_cells = 4096
+           Total number of DoFs: 276705
+           Subdomain DoFs setup                      (CPU/wall) 0.17527s/0.205696s
+           Matrix-free operators setup               (CPU/wall) 0.014558s/0.0157544s
+           MG transfers setup                        (CPU/wall) 0.006185s/0.00623294s
+           Smoothers setup                           (CPU/wall) 0.013454s/0.0135426s
+           MG Preconditioners setup                  (CPU/wall) 0.003598s/0.00459936s
+           Interface system setup                    (CPU/wall) 0.01508s/0.0181915s
+           BNN preconditioner setup                  (CPU/wall) 0.000194s/0.000203201s
+           Coarse matrix for BNN computed            (CPU/wall) 5.57717s/5.61838s
+           RHS assembled                             (CPU/wall) 0.00124s/0.00125604s
+           Schur RHS assembled                       (CPU/wall) 0.083318s/0.0875489s
+           setup time: 13.3261s
+residual_norm = 0.0122714
+residual_norm = 0.00445113
+residual_norm = 0.00231054
+residual_norm = 0.00168772
+residual_norm = 0.00101
+residual_norm = 0.000553084
+residual_norm = 0.000135522
+residual_norm = 5.16081e-05
+residual_norm = 2.33067e-05
+residual_norm = 1.06758e-05
+residual_norm = 4.6818e-06
+residual_norm = 2.21134e-06
+residual_norm = 8.72187e-07
+residual_norm = 3.25863e-07
+residual_norm = 1.407e-07
+residual_norm = 5.74079e-08
+residual_norm = 2.71573e-08
+residual_norm = 1.06521e-08
+residual_norm = 4.34919e-09
+residual_norm = 1.6455e-09
+residual_norm = 9.72215e-10
+           Interface solver converged in 21 iterations.    (CPU/wall) 6.20098s/6.25173s
+           Subdomain solution post-processed         (CPU/wall) 0.094591s/0.116405s
+        solution norm: 0.024877
+           Output results                            (CPU/wall) 0.013376s/0.0134612s
+
+
+cells  dofs  Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+   64   5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+  512  36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+ 4096 276705 3.571e+00 2.182e+00 1.777e-01 2.035e+00 6.252e+00    21 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+   1.700e-01    1.039e-01    8.463e-03    9.688e-02   2.977e-01         11         11 
+
+
+cells  dofs  subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+   64   5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+  512  36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+ 4096 276705      8.3012e-02        8.7449e-02            2.8929e-04   5.4683e-04     1.7960e-06         5.4182e-04 
+
+
+Cycle 3
+           Subdomain triangulations extracted        (CPU/wall) 0.07771s/0.0957397s
+    N_cells = 32768
+           Total number of DoFs: 2154945
+           Subdomain DoFs setup                      (CPU/wall) 0.403579s/0.451934s
+           Matrix-free operators setup               (CPU/wall) 0.055213s/0.0585323s
+           MG transfers setup                        (CPU/wall) 0.016749s/0.0168647s
+           Smoothers setup                           (CPU/wall) 0.018687s/0.0187876s
+           MG Preconditioners setup                  (CPU/wall) 0.00555s/0.00558636s
+           Interface system setup                    (CPU/wall) 0.013678s/0.0261167s
+           BNN preconditioner setup                  (CPU/wall) 0.000194s/0.000199602s
+           Coarse matrix for BNN computed            (CPU/wall) 7.29797s/7.33745s
+           RHS assembled                             (CPU/wall) 0.007092s/0.00712979s
+           Schur RHS assembled                       (CPU/wall) 0.109874s/0.113275s
+           setup time: 21.4576s
+residual_norm = 0.00892669
+residual_norm = 0.00351259
+residual_norm = 0.00209014
+residual_norm = 0.00166696
+residual_norm = 0.000969103
+residual_norm = 0.000537551
+residual_norm = 0.000155718
+residual_norm = 7.11155e-05
+residual_norm = 3.96832e-05
+residual_norm = 2.13274e-05
+residual_norm = 1.00728e-05
+residual_norm = 4.43925e-06
+residual_norm = 2.03613e-06
+residual_norm = 8.60989e-07
+residual_norm = 4.00983e-07
+residual_norm = 2.04003e-07
+residual_norm = 9.36356e-08
+residual_norm = 4.03946e-08
+residual_norm = 1.62632e-08
+residual_norm = 7.51775e-09
+residual_norm = 3.0274e-09
+residual_norm = 2.01174e-09
+residual_norm = 1.26262e-09
+residual_norm = 5.93255e-10
+           Interface solver converged in 24 iterations.    (CPU/wall) 8.70499s/8.76796s
+           Subdomain solution post-processed         (CPU/wall) 0.149502s/0.190309s
+        solution norm: 0.0249593
+           Output results                            (CPU/wall) 0.022704s/0.0228516s
+
+
+cells  dofs   Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+   64    5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+  512   36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+ 4096  276705 3.571e+00 2.182e+00 1.777e-01 2.035e+00 6.252e+00    21 
+32768 2154945 5.236e+00 2.929e+00 2.544e-01 2.970e+00 8.768e+00    24 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+   1.700e-01    1.039e-01    8.463e-03    9.688e-02   2.977e-01         11         11 
+   2.182e-01    1.220e-01    1.060e-02    1.237e-01   3.653e-01         12         11 
+
+
+cells  dofs   subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+   64    5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+  512   36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+ 4096  276705      8.3012e-02        8.7449e-02            2.8929e-04   5.4683e-04     1.7960e-06         5.4182e-04 
+32768 2154945      1.0934e-01        1.1423e-01            2.9309e-04   5.5218e-04     1.8190e-06         5.4747e-04 
+
+
+Cycle 4
+           Subdomain triangulations extracted        (CPU/wall) 0.489632s/0.557501s
+    N_cells = 262144
+           Total number of DoFs: 17007489
+           Subdomain DoFs setup                      (CPU/wall) 1.51376s/1.6335s
+           Matrix-free operators setup               (CPU/wall) 0.371286s/0.385221s
+           MG transfers setup                        (CPU/wall) 0.086702s/0.0882313s
+           Smoothers setup                           (CPU/wall) 0.087106s/0.0884857s
+           MG Preconditioners setup                  (CPU/wall) 0.007189s/0.00851311s
+           Interface system setup                    (CPU/wall) 0.018579s/0.0291906s
+           BNN preconditioner setup                  (CPU/wall) 0.00021s/0.000218641s
+           Coarse matrix for BNN computed            (CPU/wall) 9.06118s/9.10917s
+           RHS assembled                             (CPU/wall) 0.053026s/0.0532858s
+           Schur RHS assembled                       (CPU/wall) 0.149961s/0.153829s
+           setup time: 33.5645s
+residual_norm = 0.00619
+residual_norm = 0.00263917
+residual_norm = 0.00177501
+residual_norm = 0.00147176
+residual_norm = 0.000817481
+residual_norm = 0.000448615
+residual_norm = 0.000161956
+residual_norm = 8.90303e-05
+residual_norm = 5.47562e-05
+residual_norm = 3.02166e-05
+residual_norm = 1.47101e-05
+residual_norm = 6.95347e-06
+residual_norm = 3.21768e-06
+residual_norm = 1.57358e-06
+residual_norm = 8.71711e-07
+residual_norm = 4.09453e-07
+residual_norm = 2.00904e-07
+residual_norm = 9.85207e-08
+residual_norm = 4.4827e-08
+residual_norm = 2.31618e-08
+residual_norm = 1.63604e-08
+residual_norm = 1.26208e-08
+residual_norm = 6.16697e-09
+residual_norm = 2.70832e-09
+residual_norm = 1.62059e-09
+residual_norm = 8.04006e-10
+residual_norm = 3.99929e-10
+           Interface solver converged in 27 iterations.    (CPU/wall) 12.4061s/12.4906s
+           Subdomain solution post-processed         (CPU/wall) 0.169534s/0.215145s
+        solution norm: 0.0249801
+           Output results                            (CPU/wall) 0.200888s/0.202878s
+
+
+cells    dofs   Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+    64     5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+   512    36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+  4096   276705 3.571e+00 2.182e+00 1.777e-01 2.035e+00 6.252e+00    21 
+ 32768  2154945 5.236e+00 2.929e+00 2.544e-01 2.970e+00 8.768e+00    24 
+262144 17007489 7.756e+00 3.997e+00 2.569e-01 4.235e+00 1.249e+01    27 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+   1.700e-01    1.039e-01    8.463e-03    9.688e-02   2.977e-01         11         11 
+   2.182e-01    1.220e-01    1.060e-02    1.237e-01   3.653e-01         12         11 
+   2.873e-01    1.481e-01    9.516e-03    1.569e-01   4.626e-01         12         11 
+
+
+cells    dofs   subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+    64     5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+   512    36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+  4096   276705      8.3012e-02        8.7449e-02            2.8929e-04   5.4683e-04     1.7960e-06         5.4182e-04 
+ 32768  2154945      1.0934e-01        1.1423e-01            2.9309e-04   5.5218e-04     1.8190e-06         5.4747e-04 
+262144 17007489      1.3713e-01        1.4497e-01            2.9640e-04   5.6008e-04     1.9218e-06         5.5032e-04 
+
+
+Cycle 5
+           Subdomain triangulations extracted        (CPU/wall) 3.43696s/3.66904s
+    N_cells = 2097152
+           Total number of DoFs: 135137025
+           Subdomain DoFs setup                      (CPU/wall) 6.00849s/6.1928s
+           Matrix-free operators setup               (CPU/wall) 3.02904s/3.14088s
+           MG transfers setup                        (CPU/wall) 0.6964s/0.714047s
+           Smoothers setup                           (CPU/wall) 0.528104s/0.530257s
+           MG Preconditioners setup                  (CPU/wall) 0.007602s/0.0106602s
+           Interface system setup                    (CPU/wall) 0.017221s/0.0329063s
+           BNN preconditioner setup                  (CPU/wall) 0.000379s/0.000417542s
+           Coarse matrix for BNN computed            (CPU/wall) 15.0951s/15.1732s
+           RHS assembled                             (CPU/wall) 0.431496s/0.437552s
+           Schur RHS assembled                       (CPU/wall) 0.291015s/0.296461s
+           setup time: 63.7626s
+residual_norm = 0.00420194
+residual_norm = 0.00193815
+residual_norm = 0.0014441
+residual_norm = 0.00120831
+residual_norm = 0.000637734
+residual_norm = 0.000347797
+residual_norm = 0.000157051
+residual_norm = 0.000100146
+residual_norm = 6.26565e-05
+residual_norm = 3.36701e-05
+residual_norm = 1.82739e-05
+residual_norm = 9.03168e-06
+residual_norm = 4.13322e-06
+residual_norm = 2.37806e-06
+residual_norm = 1.40248e-06
+residual_norm = 6.57901e-07
+residual_norm = 3.5415e-07
+residual_norm = 2.02438e-07
+residual_norm = 1.13534e-07
+residual_norm = 7.47678e-08
+residual_norm = 4.32221e-08
+residual_norm = 2.47483e-08
+residual_norm = 1.61946e-08
+residual_norm = 6.98415e-09
+residual_norm = 3.94362e-09
+residual_norm = 2.51322e-09
+residual_norm = 1.41191e-09
+residual_norm = 1.02624e-09
+residual_norm = 5.50085e-10
+residual_norm = 2.33263e-10
+           Interface solver converged in 30 iterations.    (CPU/wall) 21.9383s/22.0795s
+           Subdomain solution post-processed         (CPU/wall) 0.289828s/0.33293s
+        solution norm: 0.0249854
+           Output results                            (CPU/wall) 1.46061s/1.46793s
+
+
+ cells    dofs    Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+     64      5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+    512     36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+   4096    276705 3.571e+00 2.182e+00 1.777e-01 2.035e+00 6.252e+00    21 
+  32768   2154945 5.236e+00 2.929e+00 2.544e-01 2.970e+00 8.768e+00    24 
+ 262144  17007489 7.756e+00 3.997e+00 2.569e-01 4.235e+00 1.249e+01    27 
+2097152 135137025 1.402e+01 6.919e+00 4.209e-01 7.592e+00 2.208e+01    30 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+   1.700e-01    1.039e-01    8.463e-03    9.688e-02   2.977e-01         11         11 
+   2.182e-01    1.220e-01    1.060e-02    1.237e-01   3.653e-01         12         11 
+   2.873e-01    1.481e-01    9.516e-03    1.569e-01   4.626e-01         12         11 
+   4.674e-01    2.306e-01    1.403e-02    2.531e-01   7.360e-01         13         11 
+
+
+ cells    dofs    subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+     64      5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+    512     36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+   4096    276705      8.3012e-02        8.7449e-02            2.8929e-04   5.4683e-04     1.7960e-06         5.4182e-04 
+  32768   2154945      1.0934e-01        1.1423e-01            2.9309e-04   5.5218e-04     1.8190e-06         5.4747e-04 
+ 262144  17007489      1.3713e-01        1.4497e-01            2.9640e-04   5.6008e-04     1.9218e-06         5.5032e-04 
+2097152 135137025      2.1969e-01        2.3108e-01            2.8331e-04   5.3782e-04     1.8514e-06         5.3174e-04 
+
+
+Cycle 6
+           Subdomain triangulations extracted        (CPU/wall) 26.6058s/27.8001s
+    N_cells = 16777216
+           Total number of DoFs: 1077415425
+           Subdomain DoFs setup                      (CPU/wall) 30.4308s/31.4375s
+           Matrix-free operators setup               (CPU/wall) 24.1115s/24.8828s
+           MG transfers setup                        (CPU/wall) 5.50646s/5.86019s
+           Smoothers setup                           (CPU/wall) 3.87001s/3.89505s
+           MG Preconditioners setup                  (CPU/wall) 0.010546s/0.0156382s
+           Interface system setup                    (CPU/wall) 0.029169s/0.0455145s
+           BNN preconditioner setup                  (CPU/wall) 0.000483s/0.000685523s
+           Coarse matrix for BNN computed            (CPU/wall) 60.1976s/60.5408s
+           RHS assembled                             (CPU/wall) 3.3798s/3.44567s
+           Schur RHS assembled                       (CPU/wall) 1.06117s/1.07361s
+           setup time: 222.76s
+residual_norm = 0.00282739
+residual_norm = 0.00140839
+residual_norm = 0.00113849
+residual_norm = 0.00094267
+residual_norm = 0.000475627
+residual_norm = 0.000263891
+residual_norm = 0.00014427
+residual_norm = 0.000102069
+residual_norm = 6.24785e-05
+residual_norm = 3.29112e-05
+residual_norm = 2.05391e-05
+residual_norm = 1.00304e-05
+residual_norm = 4.92336e-06
+residual_norm = 3.04181e-06
+residual_norm = 1.85111e-06
+residual_norm = 1.01654e-06
+residual_norm = 5.81314e-07
+residual_norm = 3.78662e-07
+residual_norm = 2.39326e-07
+residual_norm = 1.56491e-07
+residual_norm = 1.00934e-07
+residual_norm = 5.32907e-08
+residual_norm = 2.75895e-08
+residual_norm = 1.3232e-08
+residual_norm = 7.67103e-09
+residual_norm = 5.80726e-09
+residual_norm = 3.3675e-09
+residual_norm = 1.9309e-09
+residual_norm = 1.25183e-09
+residual_norm = 6.58439e-10
+residual_norm = 4.57602e-10
+residual_norm = 3.46102e-10
+residual_norm = 2.00633e-10
+residual_norm = 1.25341e-10
+           Interface solver converged in 34 iterations.    (CPU/wall) 99.1585s/99.7462s
+           Subdomain solution post-processed         (CPU/wall) 1.25985s/1.37027s
+        solution norm: 0.0249867
+           Output results                            (CPU/wall) 11.2391s/11.3017s
+
+
+ cells      dofs    Dirichlet  Neumann   Coarse    Project   CG_time  Iters 
+      64       5049 8.693e-01 8.259e-01 1.056e-01 5.566e-01 1.924e+00    15 
+     512      36465 1.872e+00 1.491e+00 1.012e-01 1.071e+00 3.650e+00    18 
+    4096     276705 3.571e+00 2.182e+00 1.777e-01 2.035e+00 6.252e+00    21 
+   32768    2154945 5.236e+00 2.929e+00 2.544e-01 2.970e+00 8.768e+00    24 
+  262144   17007489 7.756e+00 3.997e+00 2.569e-01 4.235e+00 1.249e+01    27 
+ 2097152  135137025 1.402e+01 6.919e+00 4.209e-01 7.592e+00 2.208e+01    30 
+16777216 1077415425 6.510e+01 3.117e+01 9.889e-01 3.395e+01 9.975e+01    34 
+
+
+Dir_per_iter Neu_per_iter Crs_per_iter Prj_per_iter CG_per_iter dir_mg_its neu_mg_its 
+   5.795e-02    5.506e-02    7.041e-03    3.711e-02   1.283e-01          6          6 
+   1.040e-01    8.282e-02    5.623e-03    5.949e-02   2.028e-01          8          9 
+   1.700e-01    1.039e-01    8.463e-03    9.688e-02   2.977e-01         11         11 
+   2.182e-01    1.220e-01    1.060e-02    1.237e-01   3.653e-01         12         11 
+   2.873e-01    1.481e-01    9.516e-03    1.569e-01   4.626e-01         12         11 
+   4.674e-01    2.306e-01    1.403e-02    2.531e-01   7.360e-01         13         11 
+   1.915e+00    9.168e-01    2.908e-02    9.986e-01   2.934e+00         13         11 
+
+
+ cells      dofs    subdomain_total subdomain_compute subdomain_communicate coarse_total coarse_compute coarse_communicate 
+      64       5049      2.9342e-02        2.8182e-02            2.6496e-04   5.7242e-04     1.7368e-06         5.7057e-04 
+     512      36465      4.5931e-02        5.0331e-02            2.7781e-04   5.3421e-04     1.7436e-06         5.2812e-04 
+    4096     276705      8.3012e-02        8.7449e-02            2.8929e-04   5.4683e-04     1.7960e-06         5.4182e-04 
+   32768    2154945      1.0934e-01        1.1423e-01            2.9309e-04   5.5218e-04     1.8190e-06         5.4747e-04 
+  262144   17007489      1.3713e-01        1.4497e-01            2.9640e-04   5.6008e-04     1.9218e-06         5.5032e-04 
+ 2097152  135137025      2.1969e-01        2.3108e-01            2.8331e-04   5.3782e-04     1.8514e-06         5.3174e-04 
+16777216 1077415425      8.9041e-01        9.5103e-01            3.5089e-04   6.3409e-04     1.8650e-06         6.3119e-04 
+
+
+Cycle 7
+           Subdomain triangulations extracted        (CPU/wall) 217.299s/239.798s
+    N_cells = 134217728
+           Total number of DoFs: 8604621825
+           Subdomain DoFs setup                      (CPU/wall) 183.161s/191.119s
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0952:3888030] *** Process received signal ***
+[jwb0952:3888030] Signal: Aborted (6)
+[jwb0952:3888030] Signal code:  (-6)
+[jwb0952:3888030] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14b73188ac30]
+[jwb0952:3888030] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14b7318d802c]
+[jwb0952:3888030] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14b73188ab86]
+[jwb0952:3888030] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14b731874873]
+[jwb0952:3888030] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14b7318751b2]
+[jwb0952:3888030] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14b7318e20d7]
+[jwb0952:3888030] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14b7318e3dcc]
+[jwb0952:3888030] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14b7318e6415]
+[jwb0952:3888030] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0952:3888030] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14b73188c8c7]
+[jwb0952:3888030] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14b7340ed7d7]
+[jwb0952:3888030] *** End of error message ***
+double free or corruption (!prev)
+[jwb0940:2289923] *** Process received signal ***
+[jwb0940:2289923] Signal: Aborted (6)
+[jwb0940:2289923] Signal code:  (-6)
+[jwb0940:2289923] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x15316a7f8c30]
+[jwb0940:2289923] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x15316a84602c]
+[jwb0940:2289923] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x15316a7f8b86]
+[jwb0940:2289923] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x15316a7e2873]
+[jwb0940:2289923] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x15316a7e31b2]
+[jwb0940:2289923] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x15316a8500d7]
+[jwb0940:2289923] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x15316a851dcc]
+[jwb0940:2289923] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x15316a854415]
+[jwb0940:2289923] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0940:2289923] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x15316a7fa8c7]
+[jwb0940:2289923] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x15316d05b7d7]
+[jwb0940:2289923] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0940:2289924] *** Process received signal ***
+[jwb0940:2289924] Signal: Aborted (6)
+[jwb0940:2289924] Signal code:  (-6)
+[jwb0940:2289924] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14d2aa4cec30]
+[jwb0940:2289924] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14d2aa51c02c]
+[jwb0940:2289924] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14d2aa4ceb86]
+[jwb0940:2289924] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14d2aa4b8873]
+[jwb0940:2289924] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14d2aa4b91b2]
+[jwb0940:2289924] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14d2aa5260d7]
+[jwb0940:2289924] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14d2aa527dcc]
+[jwb0940:2289924] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14d2aa52a415]
+[jwb0940:2289924] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0940:2289924] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14d2aa4d08c7]
+[jwb0940:2289924] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14d2acd317d7]
+[jwb0940:2289924] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+double free or corruption (!prev)
+[jwb0951:3820479] *** Process received signal ***
+[jwb0951:3820480] *** Process received signal ***
+[jwb0951:3820480] Signal: Aborted (6)
+[jwb0951:3820480] Signal code:  (-6)
+[jwb0951:3820479] Signal: Aborted (6)
+[jwb0951:3820479] Signal code:  (-6)
+[jwb0951:3820480] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14bfb7052c30]
+[jwb0951:3820480] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14bfb70a002c]
+[jwb0951:3820480] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14bfb7052b86]
+[jwb0951:3820480] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14bfb703c873]
+[jwb0951:3820480] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14bfb703d1b2]
+[jwb0951:3820480] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14bfb70aa0d7]
+[jwb0951:3820480] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14bfb70abdcc]
+[jwb0951:3820480] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14bfb70ae415]
+[jwb0951:3820480] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0951:3820480] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14bfb70548c7]
+[jwb0951:3820480] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14bfb98b57d7]
+[jwb0951:3820480] *** End of error message ***
+[jwb0951:3820479] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x154980842c30]
+[jwb0951:3820479] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x15498089002c]
+[jwb0951:3820479] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x154980842b86]
+[jwb0951:3820479] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x15498082c873]
+[jwb0951:3820479] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x15498082d1b2]
+[jwb0951:3820479] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x15498089a0d7]
+[jwb0951:3820479] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x15498089bdcc]
+[jwb0951:3820479] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x15498089e415]
+[jwb0951:3820479] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0951:3820479] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1549808448c7]
+[jwb0951:3820479] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1549830a57d7]
+[jwb0951:3820479] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0949:1731211] *** Process received signal ***
+[jwb0949:1731211] Signal: Aborted (6)
+[jwb0949:1731211] Signal code:  (-6)
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0949:1731214] *** Process received signal ***
+[jwb0949:1731214] Signal: Aborted (6)
+[jwb0949:1731214] Signal code:  (-6)
+[jwb0949:1731214] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14d0561d0c30]
+[jwb0949:1731214] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14d05621e02c]
+[jwb0949:1731214] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14d0561d0b86]
+[jwb0949:1731214] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14d0561ba873]
+[jwb0949:1731214] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14d0561bb1b2]
+[jwb0949:1731214] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14d0562280d7]
+[jwb0949:1731214] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14d056229dcc]
+[jwb0949:1731214] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14d05622c415]
+[jwb0949:1731214] [ 8] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14d0561d28c7]
+[jwb0949:1731214] [ 9] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14d058a337d7]
+[jwb0949:1731214] *** End of error message ***
+[jwb0949:1731211] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x147f32c27c30]
+[jwb0949:1731211] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x147f32c7502c]
+[jwb0949:1731211] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x147f32c27b86]
+[jwb0949:1731211] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x147f32c11873]
+[jwb0949:1731211] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x147f32c121b2]
+[jwb0949:1731211] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x147f32c7f0d7]
+[jwb0949:1731211] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x147f32c80dcc]
+[jwb0949:1731211] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x147f32c83415]
+[jwb0949:1731211] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0949:1731211] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x147f32c298c7]
+[jwb0949:1731211] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x147f3548a7d7]
+[jwb0949:1731211] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0952:3888031] *** Process received signal ***
+[jwb0952:3888031] Signal: Aborted (6)
+[jwb0952:3888031] Signal code:  (-6)
+[jwb0952:3888031] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14a322ef1c30]
+[jwb0952:3888031] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14a322f3f02c]
+[jwb0952:3888031] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14a322ef1b86]
+[jwb0952:3888031] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14a322edb873]
+[jwb0952:3888031] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14a322edc1b2]
+[jwb0952:3888031] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14a322f490d7]
+[jwb0952:3888031] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14a322f4adcc]
+[jwb0952:3888031] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14a322f4d415]
+[jwb0952:3888031] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0952:3888031] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14a322ef38c7]
+[jwb0952:3888031] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14a3257547d7]
+[jwb0952:3888031] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0951:3820481] *** Process received signal ***
+[jwb0951:3820481] Signal: Aborted (6)
+[jwb0951:3820481] Signal code:  (-6)
+[jwb0951:3820481] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1510b287dc30]
+[jwb0951:3820481] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1510b28cb02c]
+[jwb0951:3820481] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1510b287db86]
+[jwb0951:3820481] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1510b2867873]
+[jwb0951:3820481] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1510b28681b2]
+[jwb0951:3820481] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1510b28d50d7]
+[jwb0951:3820481] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1510b28d6dcc]
+[jwb0951:3820481] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1510b28d9415]
+[jwb0951:3820481] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0951:3820481] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1510b287f8c7]
+[jwb0951:3820481] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1510b50e07d7]
+[jwb0951:3820481] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0940:2289921] *** Process received signal ***
+[jwb0940:2289921] Signal: Aborted (6)
+[jwb0940:2289921] Signal code:  (-6)
+[jwb0940:2289921] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x148b46067c30]
+[jwb0940:2289921] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x148b460b502c]
+[jwb0940:2289921] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x148b46067b86]
+[jwb0940:2289921] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x148b46051873]
+[jwb0940:2289921] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x148b460521b2]
+[jwb0940:2289921] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x148b460bf0d7]
+[jwb0940:2289921] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x148b460c0dcc]
+[jwb0940:2289921] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x148b460c3415]
+[jwb0940:2289921] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0940:2289921] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x148b460698c7]
+[jwb0940:2289921] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x148b488ca7d7]
+[jwb0940:2289921] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0952:3888032] *** Process received signal ***
+[jwb0952:3888032] Signal: Aborted (6)
+[jwb0952:3888032] Signal code:  (-6)
+[jwb0952:3888032] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14687cc6ec30]
+[jwb0952:3888032] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14687ccbc02c]
+[jwb0952:3888032] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14687cc6eb86]
+[jwb0952:3888032] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14687cc58873]
+[jwb0952:3888032] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14687cc591b2]
+[jwb0952:3888032] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14687ccc60d7]
+[jwb0952:3888032] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14687ccc7dcc]
+[jwb0952:3888032] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14687ccca415]
+[jwb0952:3888032] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0952:3888032] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14687cc708c7]
+[jwb0952:3888032] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14687f4d17d7]
+[jwb0952:3888032] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0949:1731212] *** Process received signal ***
+[jwb0949:1731212] Signal: Aborted (6)
+[jwb0949:1731212] Signal code:  (-6)
+[jwb0949:1731212] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1484e2911c30]
+[jwb0949:1731212] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1484e295f02c]
+[jwb0949:1731212] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1484e2911b86]
+[jwb0949:1731212] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1484e28fb873]
+[jwb0949:1731212] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1484e28fc1b2]
+[jwb0949:1731212] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1484e29690d7]
+[jwb0949:1731212] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1484e296adcc]
+[jwb0949:1731212] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1484e296d415]
+[jwb0949:1731212] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0949:1731212] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1484e29138c7]
+[jwb0949:1731212] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1484e51747d7]
+[jwb0949:1731212] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0938:3800295] *** Process received signal ***
+[jwb0938:3800295] Signal: Aborted (6)
+[jwb0938:3800295] Signal code:  (-6)
+[jwb0938:3800295] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14fb50af2c30]
+[jwb0938:3800295] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14fb50b4002c]
+[jwb0938:3800295] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14fb50af2b86]
+[jwb0938:3800295] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14fb50adc873]
+[jwb0938:3800295] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14fb50add1b2]
+[jwb0938:3800295] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14fb50b4a0d7]
+[jwb0938:3800295] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14fb50b4bdcc]
+[jwb0938:3800295] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14fb50b4e415]
+[jwb0938:3800295] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0938:3800295] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14fb50af48c7]
+[jwb0938:3800295] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14fb533557d7]
+[jwb0938:3800295] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0952:3888029] *** Process received signal ***
+[jwb0952:3888029] Signal: Aborted (6)
+[jwb0952:3888029] Signal code:  (-6)
+[jwb0952:3888029] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x146426f56c30]
+[jwb0952:3888029] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x146426fa402c]
+[jwb0952:3888029] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x146426f56b86]
+[jwb0952:3888029] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x146426f40873]
+[jwb0952:3888029] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x146426f411b2]
+[jwb0952:3888029] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x146426fae0d7]
+[jwb0952:3888029] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x146426fafdcc]
+[jwb0952:3888029] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x146426fb2415]
+[jwb0952:3888029] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0952:3888029] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x146426f588c7]
+[jwb0952:3888029] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1464297b97d7]
+[jwb0952:3888029] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1035:2516313] *** Process received signal ***
+[jwb1035:2516313] Signal: Aborted (6)
+[jwb1035:2516313] Signal code:  (-6)
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1035:2516312] *** Process received signal ***
+[jwb1035:2516312] Signal: Aborted (6)
+[jwb1035:2516312] Signal code:  (-6)
+[jwb1035:2516313] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1481cebaac30]
+[jwb1035:2516313] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1481cebf802c]
+[jwb1035:2516313] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1481cebaab86]
+[jwb1035:2516313] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1481ceb94873]
+[jwb1035:2516313] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1481ceb951b2]
+[jwb1035:2516313] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1481cec020d7]
+[jwb1035:2516313] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1481cec03dcc]
+[jwb1035:2516313] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1481cec06415]
+[jwb1035:2516313] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1035:2516313] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1481cebac8c7]
+[jwb1035:2516313] [10] [jwb1035:2516312] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1493c4fa5c30]
+[jwb1035:2516312] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1493c4ff302c]
+[jwb1035:2516312] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1493c4fa5b86]
+[jwb1035:2516312] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1493c4f8f873]
+[jwb1035:2516312] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1493c4f901b2]
+[jwb1035:2516312] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1493c4ffd0d7]
+[jwb1035:2516312] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1493c4ffedcc]
+[jwb1035:2516312] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1493c5001415]
+[jwb1035:2516312] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1035:2516312] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1493c4fa78c7]
+[jwb1035:2516312] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1493c78087d7]
+[jwb1035:2516312] *** End of error message ***
+/p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1481d140d7d7]
+[jwb1035:2516313] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1095:3725764] *** Process received signal ***
+[jwb1095:3725764] Signal: Aborted (6)
+[jwb1095:3725764] Signal code:  (-6)
+[jwb1095:3725764] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x15090ddcfc30]
+[jwb1095:3725764] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x15090de1d02c]
+[jwb1095:3725764] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x15090ddcfb86]
+[jwb1095:3725764] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x15090ddb9873]
+[jwb1095:3725764] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x15090ddba1b2]
+[jwb1095:3725764] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x15090de270d7]
+[jwb1095:3725764] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x15090de28dcc]
+[jwb1095:3725764] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x15090de2b415]
+[jwb1095:3725764] [ 8] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x15090ddd18c7]
+[jwb1095:3725764] [ 9] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1509106327d7]
+[jwb1095:3725764] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0938:3800297] *** Process received signal ***
+[jwb0938:3800297] Signal: Aborted (6)
+[jwb0938:3800297] Signal code:  (-6)
+[jwb0938:3800297] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x152140d50c30]
+[jwb0938:3800297] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x152140d9e02c]
+[jwb0938:3800297] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x152140d50b86]
+[jwb0938:3800297] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x152140d3a873]
+[jwb0938:3800297] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x152140d3b1b2]
+[jwb0938:3800297] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x152140da80d7]
+[jwb0938:3800297] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x152140da9dcc]
+[jwb0938:3800297] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x152140dac415]
+[jwb0938:3800297] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0938:3800297] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x152140d528c7]
+[jwb0938:3800297] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1521435b37d7]
+[jwb0938:3800297] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1095:3725765] *** Process received signal ***
+[jwb1095:3725765] Signal: Aborted (6)
+[jwb1095:3725765] Signal code:  (-6)
+[jwb1095:3725765] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14c03d347c30]
+[jwb1095:3725765] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14c03d39502c]
+[jwb1095:3725765] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14c03d347b86]
+[jwb1095:3725765] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14c03d331873]
+[jwb1095:3725765] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14c03d3321b2]
+[jwb1095:3725765] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14c03d39f0d7]
+[jwb1095:3725765] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14c03d3a0dcc]
+[jwb1095:3725765] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14c03d3a3415]
+[jwb1095:3725765] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1095:3725765] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14c03d3498c7]
+[jwb1095:3725765] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14c03fbaa7d7]
+[jwb1095:3725765] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0939:49088] *** Process received signal ***
+[jwb0939:49088] Signal: Aborted (6)
+[jwb0939:49088] Signal code:  (-6)
+[jwb0939:49088] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x154a8356fc30]
+[jwb0939:49088] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x154a835bd02c]
+[jwb0939:49088] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x154a8356fb86]
+[jwb0939:49088] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x154a83559873]
+[jwb0939:49088] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x154a8355a1b2]
+[jwb0939:49088] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x154a835c70d7]
+[jwb0939:49088] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x154a835c8dcc]
+[jwb0939:49088] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x154a835cb415]
+[jwb0939:49088] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0939:49088] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x154a835718c7]
+[jwb0939:49088] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x154a85dd27d7]
+[jwb0939:49088] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1035:2516314] *** Process received signal ***
+[jwb1035:2516314] Signal: Aborted (6)
+[jwb1035:2516314] Signal code:  (-6)
+[jwb1035:2516314] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14ca0dd7ec30]
+[jwb1035:2516314] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14ca0ddcc02c]
+[jwb1035:2516314] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14ca0dd7eb86]
+[jwb1035:2516314] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14ca0dd68873]
+[jwb1035:2516314] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14ca0dd691b2]
+[jwb1035:2516314] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14ca0ddd60d7]
+[jwb1035:2516314] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14ca0ddd7dcc]
+[jwb1035:2516314] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14ca0ddda415]
+[jwb1035:2516314] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1035:2516314] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14ca0dd808c7]
+[jwb1035:2516314] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14ca105e17d7]
+[jwb1035:2516314] *** End of error message ***
+double free or corruption (!prev)
+[jwb0896:789449] *** Process received signal ***
+[jwb0896:789449] Signal: Aborted (6)
+[jwb0896:789449] Signal code:  (-6)
+[jwb0896:789449] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x147f58fd6c30]
+[jwb0896:789449] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x147f5902402c]
+[jwb0896:789449] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x147f58fd6b86]
+[jwb0896:789449] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x147f58fc0873]
+[jwb0896:789449] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x147f58fc11b2]
+[jwb0896:789449] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x147f5902e0d7]
+[jwb0896:789449] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x147f5902fdcc]
+[jwb0896:789449] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x147f59032415]
+[jwb0896:789449] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0896:789449] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x147f58fd88c7]
+[jwb0896:789449] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x147f5b8397d7]
+[jwb0896:789449] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0896:789448] *** Process received signal ***
+[jwb0896:789448] Signal: Aborted (6)
+[jwb0896:789448] Signal code:  (-6)
+[jwb0896:789448] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x153fb7582c30]
+[jwb0896:789448] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x153fb75d002c]
+[jwb0896:789448] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x153fb7582b86]
+[jwb0896:789448] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x153fb756c873]
+[jwb0896:789448] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x153fb756d1b2]
+[jwb0896:789448] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x153fb75da0d7]
+[jwb0896:789448] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x153fb75dbdcc]
+[jwb0896:789448] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x153fb75de415]
+[jwb0896:789448] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0896:789448] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x153fb75848c7]
+[jwb0896:789448] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x153fb9de57d7]
+[jwb0896:789448] *** End of error message ***
+double free or corruption (!prev)
+[jwb0937:212270] *** Process received signal ***
+[jwb0937:212270] Signal: Aborted (6)
+[jwb0937:212270] Signal code:  (-6)
+[jwb0937:212270] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x152243d8ac30]
+[jwb0937:212270] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x152243dd802c]
+[jwb0937:212270] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x152243d8ab86]
+[jwb0937:212270] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x152243d74873]
+[jwb0937:212270] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x152243d751b2]
+[jwb0937:212270] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x152243de20d7]
+[jwb0937:212270] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x152243de3dcc]
+[jwb0937:212270] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x152243de6415]
+[jwb0937:212270] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0937:212270] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x152243d8c8c7]
+[jwb0937:212270] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1522465ed7d7]
+[jwb0937:212270] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0938:3800296] *** Process received signal ***
+[jwb0938:3800296] Signal: Aborted (6)
+[jwb0938:3800296] Signal code:  (-6)
+[jwb0938:3800296] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14ec57be4c30]
+[jwb0938:3800296] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14ec57c3202c]
+[jwb0938:3800296] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14ec57be4b86]
+[jwb0938:3800296] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14ec57bce873]
+[jwb0938:3800296] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14ec57bcf1b2]
+[jwb0938:3800296] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14ec57c3c0d7]
+[jwb0938:3800296] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14ec57c3ddcc]
+[jwb0938:3800296] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14ec57c40415]
+[jwb0938:3800296] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0938:3800296] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14ec57be68c7]
+[jwb0938:3800296] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14ec5a4477d7]
+[jwb0938:3800296] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0937:212271] *** Process received signal ***
+[jwb0937:212271] Signal: Aborted (6)
+[jwb0937:212271] Signal code:  (-6)
+[jwb0937:212271] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x148d290acc30]
+[jwb0937:212271] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x148d290fa02c]
+[jwb0937:212271] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x148d290acb86]
+[jwb0937:212271] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x148d29096873]
+[jwb0937:212271] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x148d290971b2]
+[jwb0937:212271] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x148d291040d7]
+[jwb0937:212271] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x148d29105dcc]
+[jwb0937:212271] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x148d29108415]
+[jwb0937:212271] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0937:212271] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x148d290ae8c7]
+[jwb0937:212271] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x148d2b90f7d7]
+[jwb0937:212271] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0938:3800294] *** Process received signal ***
+[jwb0938:3800294] Signal: Aborted (6)
+[jwb0938:3800294] Signal code:  (-6)
+[jwb0938:3800294] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1522b6e37c30]
+[jwb0938:3800294] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1522b6e8502c]
+[jwb0938:3800294] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1522b6e37b86]
+[jwb0938:3800294] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1522b6e21873]
+[jwb0938:3800294] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1522b6e221b2]
+[jwb0938:3800294] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1522b6e8f0d7]
+[jwb0938:3800294] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1522b6e90dcc]
+[jwb0938:3800294] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1522b6e93415]
+[jwb0938:3800294] [ 8] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1522b6e398c7]
+[jwb0938:3800294] [ 9] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1522b969a7d7]
+[jwb0938:3800294] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0951:3820482] *** Process received signal ***
+[jwb0951:3820482] Signal: Aborted (6)
+[jwb0951:3820482] Signal code:  (-6)
+[jwb0951:3820482] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1497358e7c30]
+[jwb0951:3820482] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14973593502c]
+[jwb0951:3820482] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1497358e7b86]
+[jwb0951:3820482] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1497358d1873]
+[jwb0951:3820482] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1497358d21b2]
+[jwb0951:3820482] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14973593f0d7]
+[jwb0951:3820482] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x149735940dcc]
+[jwb0951:3820482] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x149735943415]
+[jwb0951:3820482] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0951:3820482] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1497358e98c7]
+[jwb0951:3820482] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14973814a7d7]
+[jwb0951:3820482] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0651:2608257] *** Process received signal ***
+[jwb0651:2608257] Signal: Aborted (6)
+[jwb0651:2608257] Signal code:  (-6)
+[jwb0651:2608257] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x146cd2bb3c30]
+[jwb0651:2608257] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x146cd2c0102c]
+[jwb0651:2608257] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x146cd2bb3b86]
+[jwb0651:2608257] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x146cd2b9d873]
+[jwb0651:2608257] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x146cd2b9e1b2]
+[jwb0651:2608257] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x146cd2c0b0d7]
+[jwb0651:2608257] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x146cd2c0cdcc]
+[jwb0651:2608257] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x146cd2c0f415]
+[jwb0651:2608257] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0651:2608257] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x146cd2bb58c7]
+[jwb0651:2608257] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x146cd54167d7]
+[jwb0651:2608257] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1035:2516315] *** Process received signal ***
+[jwb1035:2516315] Signal: Aborted (6)
+[jwb1035:2516315] Signal code:  (-6)
+[jwb1035:2516315] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x154ee5935c30]
+[jwb1035:2516315] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x154ee598302c]
+[jwb1035:2516315] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x154ee5935b86]
+[jwb1035:2516315] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x154ee591f873]
+[jwb1035:2516315] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x154ee59201b2]
+[jwb1035:2516315] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x154ee598d0d7]
+[jwb1035:2516315] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x154ee598edcc]
+[jwb1035:2516315] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x154ee5991415]
+[jwb1035:2516315] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1035:2516315] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x154ee59378c7]
+[jwb1035:2516315] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x154ee81987d7]
+[jwb1035:2516315] *** End of error message ***
+double free or corruption (!prev)
+[jwb0844:1119048] *** Process received signal ***
+[jwb0844:1119048] Signal: Aborted (6)
+[jwb0844:1119048] Signal code:  (-6)
+[jwb0844:1119048] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14833801dc30]
+[jwb0844:1119048] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14833806b02c]
+[jwb0844:1119048] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14833801db86]
+[jwb0844:1119048] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x148338007873]
+[jwb0844:1119048] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1483380081b2]
+[jwb0844:1119048] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1483380750d7]
+[jwb0844:1119048] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x148338076dcc]
+[jwb0844:1119048] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x148338079415]
+[jwb0844:1119048] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0844:1119048] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14833801f8c7]
+[jwb0844:1119048] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14833a8807d7]
+[jwb0844:1119048] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0937:212273] *** Process received signal ***
+[jwb0937:212273] Signal: Aborted (6)
+[jwb0937:212273] Signal code:  (-6)
+[jwb0937:212273] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x152ec4465c30]
+[jwb0937:212273] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x152ec44b302c]
+[jwb0937:212273] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x152ec4465b86]
+[jwb0937:212273] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x152ec444f873]
+[jwb0937:212273] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x152ec44501b2]
+[jwb0937:212273] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x152ec44bd0d7]
+[jwb0937:212273] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x152ec44bedcc]
+[jwb0937:212273] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x152ec44c1415]
+[jwb0937:212273] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0937:212273] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x152ec44678c7]
+[jwb0937:212273] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x152ec6cc87d7]
+[jwb0937:212273] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0896:789446] *** Process received signal ***
+[jwb0896:789446] Signal: Aborted (6)
+[jwb0896:789446] Signal code:  (-6)
+[jwb0896:789446] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x154ecfbfdc30]
+[jwb0896:789446] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x154ecfc4b02c]
+[jwb0896:789446] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x154ecfbfdb86]
+[jwb0896:789446] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x154ecfbe7873]
+[jwb0896:789446] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x154ecfbe81b2]
+[jwb0896:789446] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x154ecfc550d7]
+[jwb0896:789446] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x154ecfc56dcc]
+[jwb0896:789446] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x154ecfc59415]
+[jwb0896:789446] [ 8] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x154ecfbff8c7]
+[jwb0896:789446] [ 9] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x154ed24607d7]
+[jwb0896:789446] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0939:49087] *** Process received signal ***
+[jwb0939:49087] Signal: Aborted (6)
+[jwb0939:49087] Signal code:  (-6)
+[jwb0939:49087] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14615c7c9c30]
+[jwb0939:49087] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14615c81702c]
+[jwb0939:49087] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14615c7c9b86]
+[jwb0939:49087] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14615c7b3873]
+[jwb0939:49087] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14615c7b41b2]
+[jwb0939:49087] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14615c8210d7]
+[jwb0939:49087] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14615c822dcc]
+[jwb0939:49087] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14615c825415]
+[jwb0939:49087] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0939:49087] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14615c7cb8c7]
+[jwb0939:49087] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14615f02c7d7]
+[jwb0939:49087] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0939:49086] *** Process received signal ***
+[jwb0939:49086] Signal: Aborted (6)
+[jwb0939:49086] Signal code:  (-6)
+[jwb0939:49086] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14e17da62c30]
+[jwb0939:49086] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14e17dab002c]
+[jwb0939:49086] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14e17da62b86]
+[jwb0939:49086] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14e17da4c873]
+[jwb0939:49086] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14e17da4d1b2]
+[jwb0939:49086] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14e17daba0d7]
+[jwb0939:49086] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14e17dabbdcc]
+[jwb0939:49086] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14e17dabe415]
+[jwb0939:49086] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0939:49086] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14e17da648c7]
+[jwb0939:49086] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14e1802c57d7]
+[jwb0939:49086] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0896:789447] *** Process received signal ***
+[jwb0896:789447] Signal: Aborted (6)
+[jwb0896:789447] Signal code:  (-6)
+[jwb0896:789447] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x146403522c30]
+[jwb0896:789447] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14640357002c]
+[jwb0896:789447] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x146403522b86]
+[jwb0896:789447] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14640350c873]
+[jwb0896:789447] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14640350d1b2]
+[jwb0896:789447] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14640357a0d7]
+[jwb0896:789447] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14640357bdcc]
+[jwb0896:789447] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14640357e415]
+[jwb0896:789447] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0896:789447] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1464035248c7]
+[jwb0896:789447] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x146405d857d7]
+[jwb0896:789447] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0731:964483] *** Process received signal ***
+[jwb0731:964483] Signal: Aborted (6)
+[jwb0731:964483] Signal code:  (-6)
+[jwb0731:964483] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14c7b4d2cc30]
+[jwb0731:964483] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14c7b4d7a02c]
+[jwb0731:964483] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14c7b4d2cb86]
+[jwb0731:964483] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14c7b4d16873]
+[jwb0731:964483] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14c7b4d171b2]
+[jwb0731:964483] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14c7b4d840d7]
+[jwb0731:964483] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14c7b4d85dcc]
+[jwb0731:964483] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14c7b4d88415]
+[jwb0731:964483] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0731:964483] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14c7b4d2e8c7]
+[jwb0731:964483] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14c7b758f7d7]
+[jwb0731:964483] *** End of error message ***
+double free or corruption (!prev)
+[jwb0895:676991] *** Process received signal ***
+[jwb0895:676991] Signal: Aborted (6)
+[jwb0895:676991] Signal code:  (-6)
+[jwb0895:676991] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14d5bd4d5c30]
+[jwb0895:676991] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14d5bd52302c]
+[jwb0895:676991] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14d5bd4d5b86]
+[jwb0895:676991] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14d5bd4bf873]
+[jwb0895:676991] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14d5bd4c01b2]
+[jwb0895:676991] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14d5bd52d0d7]
+[jwb0895:676991] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14d5bd52edcc]
+[jwb0895:676991] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14d5bd531415]
+[jwb0895:676991] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0895:676991] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14d5bd4d78c7]
+[jwb0895:676991] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14d5bfd387d7]
+[jwb0895:676991] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0287:1234136] *** Process received signal ***
+[jwb0287:1234136] Signal: Aborted (6)
+[jwb0287:1234136] Signal code:  (-6)
+[jwb0287:1234136] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14fe49496c30]
+[jwb0287:1234136] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14fe494e402c]
+[jwb0287:1234136] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14fe49496b86]
+[jwb0287:1234136] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14fe49480873]
+[jwb0287:1234136] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14fe494811b2]
+[jwb0287:1234136] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14fe494ee0d7]
+[jwb0287:1234136] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14fe494efdcc]
+[jwb0287:1234136] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14fe494f2415]
+[jwb0287:1234136] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0287:1234136] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14fe494988c7]
+[jwb0287:1234136] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14fe4bcf97d7]
+[jwb0287:1234136] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0937:212272] *** Process received signal ***
+[jwb0937:212272] Signal: Aborted (6)
+[jwb0937:212272] Signal code:  (-6)
+[jwb0937:212272] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1518d5da5c30]
+[jwb0937:212272] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1518d5df302c]
+[jwb0937:212272] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1518d5da5b86]
+[jwb0937:212272] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1518d5d8f873]
+[jwb0937:212272] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1518d5d901b2]
+[jwb0937:212272] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1518d5dfd0d7]
+[jwb0937:212272] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1518d5dfedcc]
+[jwb0937:212272] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1518d5e01415]
+[jwb0937:212272] [ 8] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1518d5da78c7]
+[jwb0937:212272] [ 9] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1518d86087d7]
+[jwb0937:212272] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0287:1234135] *** Process received signal ***
+[jwb0287:1234135] Signal: Aborted (6)
+[jwb0287:1234135] Signal code:  (-6)
+[jwb0287:1234135] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x152c359bfc30]
+[jwb0287:1234135] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x152c35a0d02c]
+[jwb0287:1234135] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x152c359bfb86]
+[jwb0287:1234135] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x152c359a9873]
+[jwb0287:1234135] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x152c359aa1b2]
+[jwb0287:1234135] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x152c35a170d7]
+[jwb0287:1234135] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x152c35a18dcc]
+[jwb0287:1234135] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x152c35a1b415]
+[jwb0287:1234135] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0287:1234135] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x152c359c18c7]
+[jwb0287:1234135] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x152c382227d7]
+[jwb0287:1234135] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0651:2608258] *** Process received signal ***
+[jwb0651:2608258] Signal: Aborted (6)
+[jwb0651:2608258] Signal code:  (-6)
+[jwb0651:2608258] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x15252becfc30]
+[jwb0651:2608258] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x15252bf1d02c]
+[jwb0651:2608258] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x15252becfb86]
+[jwb0651:2608258] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x15252beb9873]
+[jwb0651:2608258] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x15252beba1b2]
+[jwb0651:2608258] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x15252bf270d7]
+[jwb0651:2608258] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x15252bf28dcc]
+[jwb0651:2608258] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x15252bf2b415]
+[jwb0651:2608258] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0651:2608258] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x15252bed18c7]
+[jwb0651:2608258] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x15252e7327d7]
+[jwb0651:2608258] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1095:3725766] *** Process received signal ***
+[jwb1095:3725766] Signal: Aborted (6)
+[jwb1095:3725766] Signal code:  (-6)
+[jwb1095:3725766] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x149fc3cb0c30]
+[jwb1095:3725766] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x149fc3cfe02c]
+[jwb1095:3725766] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x149fc3cb0b86]
+[jwb1095:3725766] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x149fc3c9a873]
+[jwb1095:3725766] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x149fc3c9b1b2]
+[jwb1095:3725766] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x149fc3d080d7]
+[jwb1095:3725766] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x149fc3d09dcc]
+[jwb1095:3725766] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x149fc3d0c415]
+[jwb1095:3725766] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1095:3725766] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x149fc3cb28c7]
+[jwb1095:3725766] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x149fc65137d7]
+[jwb1095:3725766] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0651:2608259] *** Process received signal ***
+[jwb0651:2608259] Signal: Aborted (6)
+[jwb0651:2608259] Signal code:  (-6)
+[jwb0651:2608259] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14e28f554c30]
+[jwb0651:2608259] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14e28f5a202c]
+[jwb0651:2608259] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14e28f554b86]
+[jwb0651:2608259] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14e28f53e873]
+[jwb0651:2608259] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14e28f53f1b2]
+[jwb0651:2608259] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14e28f5ac0d7]
+[jwb0651:2608259] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14e28f5addcc]
+[jwb0651:2608259] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14e28f5b0415]
+[jwb0651:2608259] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0651:2608259] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14e28f5568c7]
+[jwb0651:2608259] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14e291db77d7]
+[jwb0651:2608259] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0949:1731213] *** Process received signal ***
+[jwb0949:1731213] Signal: Aborted (6)
+[jwb0949:1731213] Signal code:  (-6)
+[jwb0949:1731213] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14a7db216c30]
+[jwb0949:1731213] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14a7db26402c]
+[jwb0949:1731213] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14a7db216b86]
+[jwb0949:1731213] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14a7db200873]
+[jwb0949:1731213] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14a7db2011b2]
+[jwb0949:1731213] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14a7db26e0d7]
+[jwb0949:1731213] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14a7db26fdcc]
+[jwb0949:1731213] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14a7db272415]
+[jwb0949:1731213] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0949:1731213] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14a7db2188c7]
+[jwb0949:1731213] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14a7dda797d7]
+[jwb0949:1731213] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0895:676992] *** Process received signal ***
+[jwb0895:676992] Signal: Aborted (6)
+[jwb0895:676992] Signal code:  (-6)
+[jwb0895:676992] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x151538f26c30]
+[jwb0895:676992] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x151538f7402c]
+[jwb0895:676992] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x151538f26b86]
+[jwb0895:676992] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x151538f10873]
+[jwb0895:676992] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x151538f111b2]
+[jwb0895:676992] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x151538f7e0d7]
+[jwb0895:676992] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x151538f7fdcc]
+[jwb0895:676992] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x151538f82415]
+[jwb0895:676992] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0895:676992] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x151538f288c7]
+[jwb0895:676992] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x15153b7897d7]
+[jwb0895:676992] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb1095:3725763] *** Process received signal ***
+[jwb1095:3725763] Signal: Aborted (6)
+[jwb1095:3725763] Signal code:  (-6)
+[jwb1095:3725763] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1498182c6c30]
+[jwb1095:3725763] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14981831402c]
+[jwb1095:3725763] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1498182c6b86]
+[jwb1095:3725763] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1498182b0873]
+[jwb1095:3725763] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1498182b11b2]
+[jwb1095:3725763] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14981831e0d7]
+[jwb1095:3725763] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14981831fdcc]
+[jwb1095:3725763] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x149818322415]
+[jwb1095:3725763] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb1095:3725763] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1498182c88c7]
+[jwb1095:3725763] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14981ab297d7]
+[jwb1095:3725763] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0651:2608260] *** Process received signal ***
+[jwb0651:2608260] Signal: Aborted (6)
+[jwb0651:2608260] Signal code:  (-6)
+[jwb0651:2608260] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x145561b16c30]
+[jwb0651:2608260] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x145561b6402c]
+[jwb0651:2608260] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x145561b16b86]
+[jwb0651:2608260] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x145561b00873]
+[jwb0651:2608260] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x145561b011b2]
+[jwb0651:2608260] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x145561b6e0d7]
+[jwb0651:2608260] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x145561b6fdcc]
+[jwb0651:2608260] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x145561b72415]
+[jwb0651:2608260] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0651:2608260] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x145561b188c7]
+[jwb0651:2608260] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1455643797d7]
+[jwb0651:2608260] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0940:2289922] *** Process received signal ***
+[jwb0940:2289922] Signal: Aborted (6)
+[jwb0940:2289922] Signal code:  (-6)
+[jwb0940:2289922] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1488cd323c30]
+[jwb0940:2289922] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1488cd37102c]
+[jwb0940:2289922] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1488cd323b86]
+[jwb0940:2289922] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1488cd30d873]
+[jwb0940:2289922] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1488cd30e1b2]
+[jwb0940:2289922] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1488cd37b0d7]
+[jwb0940:2289922] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1488cd37cdcc]
+[jwb0940:2289922] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1488cd37f415]
+[jwb0940:2289922] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0940:2289922] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1488cd3258c7]
+[jwb0940:2289922] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1488cfb867d7]
+[jwb0940:2289922] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0895:676990] *** Process received signal ***
+[jwb0895:676990] Signal: Aborted (6)
+[jwb0895:676990] Signal code:  (-6)
+[jwb0895:676990] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x148f1562dc30]
+[jwb0895:676990] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x148f1567b02c]
+[jwb0895:676990] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x148f1562db86]
+[jwb0895:676990] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x148f15617873]
+[jwb0895:676990] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x148f156181b2]
+[jwb0895:676990] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x148f156850d7]
+[jwb0895:676990] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x148f15686dcc]
+[jwb0895:676990] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x148f15689415]
+[jwb0895:676990] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0895:676990] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x148f1562f8c7]
+[jwb0895:676990] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x148f17e907d7]
+[jwb0895:676990] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0894:3639675] *** Process received signal ***
+[jwb0894:3639675] Signal: Aborted (6)
+[jwb0894:3639675] Signal code:  (-6)
+[jwb0894:3639675] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14e8e104bc30]
+[jwb0894:3639675] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14e8e109902c]
+[jwb0894:3639675] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14e8e104bb86]
+[jwb0894:3639675] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14e8e1035873]
+[jwb0894:3639675] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14e8e10361b2]
+[jwb0894:3639675] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14e8e10a30d7]
+[jwb0894:3639675] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14e8e10a4dcc]
+[jwb0894:3639675] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14e8e10a7415]
+[jwb0894:3639675] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0894:3639675] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14e8e104d8c7]
+[jwb0894:3639675] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14e8e38ae7d7]
+[jwb0894:3639675] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0844:1119045] *** Process received signal ***
+[jwb0844:1119045] Signal: Aborted (6)
+[jwb0844:1119045] Signal code:  (-6)
+[jwb0844:1119045] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x151abcb40c30]
+[jwb0844:1119045] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x151abcb8e02c]
+[jwb0844:1119045] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x151abcb40b86]
+[jwb0844:1119045] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x151abcb2a873]
+[jwb0844:1119045] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x151abcb2b1b2]
+[jwb0844:1119045] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x151abcb980d7]
+[jwb0844:1119045] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x151abcb99dcc]
+[jwb0844:1119045] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x151abcb9c415]
+[jwb0844:1119045] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0844:1119045] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x151abcb428c7]
+[jwb0844:1119045] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x151abf3a37d7]
+[jwb0844:1119045] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0731:964482] *** Process received signal ***
+[jwb0731:964482] Signal: Aborted (6)
+[jwb0731:964482] Signal code:  (-6)
+[jwb0731:964482] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14d036224c30]
+[jwb0731:964482] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14d03627202c]
+[jwb0731:964482] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14d036224b86]
+[jwb0731:964482] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14d03620e873]
+[jwb0731:964482] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14d03620f1b2]
+[jwb0731:964482] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14d03627c0d7]
+[jwb0731:964482] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14d03627ddcc]
+[jwb0731:964482] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14d036280415]
+[jwb0731:964482] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0731:964482] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14d0362268c7]
+[jwb0731:964482] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14d038a877d7]
+[jwb0731:964482] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0287:1234134] *** Process received signal ***
+[jwb0287:1234134] Signal: Aborted (6)
+[jwb0287:1234134] Signal code:  (-6)
+[jwb0287:1234134] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x147012a6dc30]
+[jwb0287:1234134] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x147012abb02c]
+[jwb0287:1234134] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x147012a6db86]
+[jwb0287:1234134] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x147012a57873]
+[jwb0287:1234134] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x147012a581b2]
+[jwb0287:1234134] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x147012ac50d7]
+[jwb0287:1234134] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x147012ac6dcc]
+[jwb0287:1234134] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x147012ac9415]
+[jwb0287:1234134] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0287:1234134] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x147012a6f8c7]
+[jwb0287:1234134] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1470152d07d7]
+[jwb0287:1234134] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0731:964481] *** Process received signal ***
+[jwb0731:964481] Signal: Aborted (6)
+[jwb0731:964481] Signal code:  (-6)
+[jwb0731:964481] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x145d6ade4c30]
+[jwb0731:964481] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x145d6ae3202c]
+[jwb0731:964481] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x145d6ade4b86]
+[jwb0731:964481] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x145d6adce873]
+[jwb0731:964481] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x145d6adcf1b2]
+[jwb0731:964481] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x145d6ae3c0d7]
+[jwb0731:964481] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x145d6ae3ddcc]
+[jwb0731:964481] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x145d6ae40415]
+[jwb0731:964481] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0731:964481] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x145d6ade68c7]
+[jwb0731:964481] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x145d6d6477d7]
+[jwb0731:964481] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0895:676993] *** Process received signal ***
+[jwb0895:676993] Signal: Aborted (6)
+[jwb0895:676993] Signal code:  (-6)
+[jwb0895:676993] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1479f0908c30]
+[jwb0895:676993] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1479f095602c]
+[jwb0895:676993] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1479f0908b86]
+[jwb0895:676993] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1479f08f2873]
+[jwb0895:676993] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1479f08f31b2]
+[jwb0895:676993] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1479f09600d7]
+[jwb0895:676993] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1479f0961dcc]
+[jwb0895:676993] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1479f0964415]
+[jwb0895:676993] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0895:676993] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1479f090a8c7]
+[jwb0895:676993] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1479f316b7d7]
+[jwb0895:676993] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0894:3639676] *** Process received signal ***
+[jwb0894:3639676] Signal: Aborted (6)
+[jwb0894:3639676] Signal code:  (-6)
+[jwb0894:3639676] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x152240d53c30]
+[jwb0894:3639676] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x152240da102c]
+[jwb0894:3639676] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x152240d53b86]
+[jwb0894:3639676] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x152240d3d873]
+[jwb0894:3639676] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x152240d3e1b2]
+[jwb0894:3639676] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x152240dab0d7]
+[jwb0894:3639676] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x152240dacdcc]
+[jwb0894:3639676] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x152240daf415]
+[jwb0894:3639676] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0894:3639676] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x152240d558c7]
+[jwb0894:3639676] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1522435b67d7]
+[jwb0894:3639676] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0894:3639677] *** Process received signal ***
+[jwb0894:3639677] Signal: Aborted (6)
+[jwb0894:3639677] Signal code:  (-6)
+double free or corruption (!prev)
+[jwb0894:3639677] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1538e9788c30]
+[jwb0894:3639674] *** Process received signal ***
+[jwb0894:3639674] Signal: Aborted (6)
+[jwb0894:3639674] Signal code:  (-6)
+[jwb0894:3639677] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x1538e97d602c]
+[jwb0894:3639677] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1538e9788b86]
+[jwb0894:3639677] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1538e9772873]
+[jwb0894:3639677] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1538e97731b2]
+[jwb0894:3639677] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1538e97e00d7]
+[jwb0894:3639677] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x1538e97e1dcc]
+[jwb0894:3639677] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x1538e97e4415]
+[jwb0894:3639677] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0894:3639677] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1538e978a8c7]
+[jwb0894:3639677] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x1538ebfeb7d7]
+[jwb0894:3639677] *** End of error message ***
+[jwb0894:3639674] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x1490896f1c30]
+[jwb0894:3639674] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14908973f02c]
+[jwb0894:3639674] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x1490896f1b86]
+[jwb0894:3639674] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x1490896db873]
+[jwb0894:3639674] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x1490896dc1b2]
+[jwb0894:3639674] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x1490897490d7]
+[jwb0894:3639674] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14908974adcc]
+[jwb0894:3639674] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14908974d415]
+[jwb0894:3639674] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0894:3639674] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x1490896f38c7]
+[jwb0894:3639674] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14908bf547d7]
+[jwb0894:3639674] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0844:1119046] *** Process received signal ***
+[jwb0844:1119046] Signal: Aborted (6)
+[jwb0844:1119046] Signal code:  (-6)
+[jwb0844:1119046] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14dcda8e1c30]
+[jwb0844:1119046] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14dcda92f02c]
+[jwb0844:1119046] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14dcda8e1b86]
+[jwb0844:1119046] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14dcda8cb873]
+[jwb0844:1119046] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14dcda8cc1b2]
+[jwb0844:1119046] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14dcda9390d7]
+[jwb0844:1119046] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14dcda93adcc]
+[jwb0844:1119046] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14dcda93d415]
+[jwb0844:1119046] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0844:1119046] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14dcda8e38c7]
+[jwb0844:1119046] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14dcdd1447d7]
+[jwb0844:1119046] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0287:1234137] *** Process received signal ***
+[jwb0287:1234137] Signal: Aborted (6)
+[jwb0287:1234137] Signal code:  (-6)
+[jwb0287:1234137] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x14fba0b48c30]
+[jwb0287:1234137] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x14fba0b9602c]
+[jwb0287:1234137] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x14fba0b48b86]
+[jwb0287:1234137] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x14fba0b32873]
+[jwb0287:1234137] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x14fba0b331b2]
+[jwb0287:1234137] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x14fba0ba00d7]
+[jwb0287:1234137] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x14fba0ba1dcc]
+[jwb0287:1234137] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x14fba0ba4415]
+[jwb0287:1234137] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0287:1234137] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x14fba0b4a8c7]
+[jwb0287:1234137] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x14fba33ab7d7]
+[jwb0287:1234137] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0731:964484] *** Process received signal ***
+[jwb0731:964484] Signal: Aborted (6)
+[jwb0731:964484] Signal code:  (-6)
+[jwb0731:964484] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x149efb628c30]
+[jwb0731:964484] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x149efb67602c]
+[jwb0731:964484] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x149efb628b86]
+[jwb0731:964484] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x149efb612873]
+[jwb0731:964484] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x149efb6131b2]
+[jwb0731:964484] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x149efb6800d7]
+[jwb0731:964484] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x149efb681dcc]
+[jwb0731:964484] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x149efb684415]
+[jwb0731:964484] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0731:964484] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x149efb62a8c7]
+[jwb0731:964484] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x149efde8b7d7]
+[jwb0731:964484] *** End of error message ***
+
+
+----------------------------------------------------
+Exception on processing: 
+Kokkos ERROR: Cuda memory space failed to allocate 6 GiB (label="G_tensor_color_0").
+Aborting!
+----------------------------------------------------
+double free or corruption (!prev)
+[jwb0844:1119047] *** Process received signal ***
+[jwb0844:1119047] Signal: Aborted (6)
+[jwb0844:1119047] Signal code:  (-6)
+[jwb0844:1119047] [ 0] /usr/lib64/libc.so.6(+0x3fc30)[0x153d192e6c30]
+[jwb0844:1119047] [ 1] /usr/lib64/libc.so.6(+0x8d02c)[0x153d1933402c]
+[jwb0844:1119047] [ 2] /usr/lib64/libc.so.6(raise+0x16)[0x153d192e6b86]
+[jwb0844:1119047] [ 3] /usr/lib64/libc.so.6(abort+0xd3)[0x153d192d0873]
+[jwb0844:1119047] [ 4] /usr/lib64/libc.so.6(+0x2a1b2)[0x153d192d11b2]
+[jwb0844:1119047] [ 5] /usr/lib64/libc.so.6(+0x970d7)[0x153d1933e0d7]
+[jwb0844:1119047] [ 6] /usr/lib64/libc.so.6(+0x98dcc)[0x153d1933fdcc]
+[jwb0844:1119047] [ 7] /usr/lib64/libc.so.6(free+0x55)[0x153d19342415]
+[jwb0844:1119047] [ 8] ./program(_ZNSt3mapIiPmSt4lessIiESaISt4pairIKiS0_EEED2Ev+0x24)[0x6d09b4]
+[jwb0844:1119047] [ 9] /usr/lib64/libc.so.6(__cxa_finalize+0xb7)[0x153d192e88c7]
+[jwb0844:1119047] [10] /p/home/jusers/prusak1/juwels/sw/dealii/lib/libdeal_II.so.9.8.0-pre(+0x1f4f7d7)[0x153d1bb497d7]
+[jwb0844:1119047] *** End of error message ***
+srun: error: jwb1035: tasks 56-59: Aborted (core dumped)
+srun: error: jwb0938: tasks 32-35: Aborted (core dumped)
+srun: error: jwb0937: tasks 28-31: Aborted (core dumped)
+srun: error: jwb0952: tasks 52-55: Aborted (core dumped)
+srun: error: jwb0949: tasks 44-47: Aborted (core dumped)
+srun: error: jwb0896: tasks 24-27: Aborted (core dumped)
+srun: error: jwb0940: tasks 40-43: Aborted (core dumped)
+srun: error: jwb1095: tasks 60-63: Aborted (core dumped)
+srun: error: jwb0951: tasks 48-51: Aborted (core dumped)
+srun: error: jwb0651: tasks 4-7: Aborted (core dumped)
+srun: error: jwb0731: tasks 8-11: Aborted (core dumped)
+srun: error: jwb0895: tasks 20-23: Aborted (core dumped)
+srun: error: jwb0894: tasks 16-19: Aborted (core dumped)
+srun: error: jwb0939: tasks 36-37,39: Aborted (core dumped)
+srun: error: jwb0939: task 38: Terminated
+srun: error: jwb0844: tasks 12-15: Aborted (core dumped)
+srun: error: jwb0287: tasks 0-3: Aborted (core dumped)
+srun: Force Terminated StepId=13677796.0
