@@ -979,10 +979,7 @@ namespace Portable
             //   numBlocks,
             //   threadsPerBlock);
 
-            BK1::Parallel::KokkosRestrictionBatchedKernel<dim,
-                                                          p_coarse + 1,
-                                                          p_fine + 1,
-                                                          number>(
+            BK1::Parallel::KokkosRestrictionBatchedKernel<dim, p_coarse + 1, p_fine + 1, number>(
               this->prolongation_matrix_1d,
               src_device,
               dst_device,
@@ -1366,7 +1363,7 @@ namespace Portable
   class PolynomialTransferDispatchFactory
   {
   public:
-    static constexpr unsigned int max_degree = 4;
+    static constexpr unsigned int max_degree = 6;
 
     template <typename Runner>
     static bool
