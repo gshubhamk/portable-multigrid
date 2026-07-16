@@ -35,6 +35,11 @@ namespace Portable
                 const bool computation_on) const override;
 
     void
+    vmult_timed(LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+                const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src,
+                std::map<std::string, dealii::Timer> &timers) const override;
+
+    void
     Tvmult(
       LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
       const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const override;
@@ -356,6 +361,133 @@ namespace Portable
     // std::cout << "After vmult_dummy\n";
   }
 
+  template <int dim, int fe_degree, typename number>
+  void
+  LaplaceOperatorBK3<dim, fe_degree, number>::vmult_timed(
+    LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
+    const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src,
+    std::map<std::string, dealii::Timer> &timers) const
+  {
+    timers["allocation_and_setup"].start();
+    dst = 0.;
+
+    DeviceVector<number> src_device(src.get_values(), src.locally_owned_size()),
+      dst_device(dst.get_values(), dst.locally_owned_size());
+
+    const auto        &colored_graph = matrix_free.get_colored_graph();
+    const unsigned int n_colors      = colored_graph.size();
+
+    constexpr bool is_serial =
+      std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
+
+    unsigned int numBlocks       = numbers::invalid_unsigned_int;
+    unsigned int threadsPerBlock = numbers::invalid_unsigned_int;
+    if (is_serial)
+      {
+        numBlocks       = 1u;
+        threadsPerBlock = 1u;
+      }
+    timers["allocation_and_setup"].stop();
+
+    // helper to process one color
+    auto do_color = [&](const unsigned int color)
+      {
+        const unsigned int n_cells = colored_graph[color].size();
+
+        if (n_cells > 0)
+          {
+            const auto &precomputed_data = matrix_free.get_data(color);
+
+            BK3::Parallel::KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+              precomputed_data.shape_values,
+              precomputed_data.co_shape_gradients,
+              G_tensors[color],
+              src_device,
+              dst_device,
+              dof_indices_per_color[color],
+              n_cells,
+              numBlocks,
+              threadsPerBlock);
+          }
+      };
+
+    if (matrix_free.use_overlap_communication_computation())
+      {
+        timers["mpi_ghost_start"].start();
+        src.update_ghost_values_start(0);
+        timers["mpi_ghost_start"].stop();
+
+        // In parallel, it's possible that some processors do not own any
+        // cells.
+        timers["gpu_interior_compute"].start();
+        if (colored_graph.size() > 0 && colored_graph[0].size() > 0)
+          do_color(0);
+        Kokkos::fence(); // Should this be avoided?
+        timers["gpu_interior_compute"].stop();
+
+        timers["mpi_ghost_wait_barrier"].start();
+        src.update_ghost_values_finish();
+        timers["mpi_ghost_wait_barrier"].stop();
+
+        // In serial this color does not exist because there are no ghost
+        // cells
+        timers["gpu_boundary_compute"].start();
+        if (colored_graph.size() > 1 && colored_graph[1].size() > 0)
+          do_color(1);
+        Kokkos::fence();
+        timers["gpu_boundary_compute"].stop();
+
+        timers["compress_start"].start();
+        dst.compress_start(0, VectorOperation::add);
+        timers["compress_start"].stop();
+        
+        // When the mesh is coarse it is possible that some processors do
+        // not own any cells
+        timers["gpu_interior_compute"].start();
+        if (colored_graph.size() > 2 && colored_graph[2].size() > 0)
+          do_color(2);
+        Kokkos::fence(); // Should this be avoided?Z
+        timers["gpu_interior_compute"].stop();
+
+        timers["compress_finish"].start();
+        dst.compress_finish(VectorOperation::add);
+        timers["compress_finish"].stop();
+      }
+    else
+      {
+        timers["mpi_ghost_start"].start();
+        timers["mpi_ghost_start"].stop();
+
+        timers["mpi_ghost_wait_barrier"].start();
+        src.update_ghost_values();
+        timers["mpi_ghost_wait_barrier"].stop();
+
+        timers["gpu_interior_compute"].start();
+
+        for (unsigned int color = 0; color < n_colors; ++color)
+          {
+            if (colored_graph[color].size() > color)
+              do_color(color);
+          }
+        Kokkos::fence(); // Should this be avoided?
+        timers["gpu_interior_compute"].stop();
+
+        timers["gpu_boundary_compute"].start();
+        timers["gpu_boundary_compute"].stop();
+
+        timers["compress_start"].start();
+        timers["compress_start"].stop();
+
+        timers["compress_finish"].start();
+        dst.compress(VectorOperation::add);
+        timers["compress_finish"].stop();
+      }
+
+    timers["vector_cleanup_and_constraints"].start();
+    src.zero_out_ghost_values();
+    matrix_free.copy_constrained_values(src, dst);
+    timers["vector_cleanup_and_constraints"].stop();
+  }
 
   template <int dim, int fe_degree, typename number>
   void

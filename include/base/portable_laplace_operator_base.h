@@ -30,6 +30,11 @@ namespace Portable
                 const bool computation_on) const = 0;
 
     virtual void
+    vmult_timed(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &dst,
+            const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src,
+            std::map<std::string, dealii::Timer> &timers) const = 0;
+
+    virtual void
     Tvmult(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
            const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const = 0;
 

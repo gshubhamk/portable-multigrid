@@ -122,6 +122,8 @@ namespace multigrid
     void
     matvec_ghost_timing();
 
+    void
+    matvec_ghost_timing_new();
 
     MPI_Comm mpi_communicator;
 
@@ -848,6 +850,82 @@ namespace multigrid
 
   template <int dim, int fe_degree>
   void
+  LaplaceProblem<dim, fe_degree>::matvec_ghost_timing_new()
+  {
+    MGLevelObject<LinearAlgebra::distributed::Vector<vcycle_number, MemorySpace::Default>>
+      dummy_solution(0, level_matrices.max_level()), dummy_rhs(0, level_matrices.max_level());
+
+    for (unsigned int level = 0; level <= level_matrices.max_level(); ++level)
+      {
+        level_matrices[level]->initialize_dof_vector(dummy_solution[level]);
+
+        level_matrices[level]->initialize_dof_vector(dummy_rhs[level]);
+      }
+
+    const unsigned int n_mv = 10;
+
+    for (unsigned int level = 0; level <= level_matrices.max_level(); ++level)
+      {
+        std::map<std::string, dealii::Timer> level_timers;
+        dealii::Timer overall_timer;
+
+        Kokkos::fence();
+        overall_timer.start();
+        for (unsigned int i = 0; i < n_mv; ++i)
+          level_matrices[level]->vmult_timed(dummy_solution[level],
+                                           dummy_rhs[level],
+                                           level_timers);
+        Kokkos::fence();
+        overall_timer.stop();
+
+        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+          {
+            double t_alloc         = level_timers["allocation_and_setup"].wall_time() / n_mv;
+            double t_ghost_start   = level_timers["mpi_ghost_start"].wall_time() / n_mv;
+            double t_interior      = level_timers["gpu_interior_compute"].wall_time() / n_mv;
+            double t_barrier       = level_timers["mpi_ghost_wait_barrier"].wall_time() / n_mv;
+            double t_boundary      = level_timers["gpu_boundary_compute"].wall_time() / n_mv;
+            double t_compress_init = level_timers["compress_start"].wall_time() / n_mv;
+            double t_compress_sync = level_timers["compress_finish"].wall_time() / n_mv;
+            double t_cleanup       = level_timers["vector_cleanup_and_constraints"].wall_time() / n_mv;
+            
+            double t_total_vmult  = overall_timer.wall_time() / n_mv;
+
+            double t_total_compute = t_interior + t_boundary;
+            double t_total_ghost   = t_ghost_start + t_barrier;
+            double t_total_compress = t_compress_init + t_compress_sync;
+
+            double t_total_comm = t_total_ghost + t_total_compress;
+
+            double t_total_comp_comm = t_total_compute + t_total_ghost + t_total_compress;
+
+            double t_sum_stages = t_alloc + t_total_comp_comm + t_cleanup;
+
+            std::cout << "========================================================\n"
+                      << "TIMED BREAKDOWN (Level " << level << ", NDOF = " << dof_handler.n_dofs() << ")\n"
+                      << "========================================================\n"
+                      << "  1. Allocation & Local View Setup : " << t_alloc << " s\n"
+                      << "  2. MPI Ghost Export Start        : " << t_ghost_start << " s\n"
+                      << "  3. Interior Domain Compute       : " << t_interior << " s\n"
+                      << "  4. MPI Ghost Wait Barrier        : " << t_barrier << " s\n"
+                      << "  5. Boundary Domain Compute       : " << t_boundary << " s\n"
+                      << "  6. Compress Reduction Start      : " << t_compress_init << " s\n"
+                      << "  7. Compress Reduction Finish     : " << t_compress_sync << " s\n"
+                      << "  8. Vector Cleanup & Constraints  : " << t_cleanup << " s\n"
+                      << "  ------------------------------------------------------\n"
+                      << "  TOTAL COMPUTE TIME               : " << t_total_compute << " s\n"
+                      << "  TOTAL GHOST & COMPRESS TIME      : " << t_total_comm << " s\n"
+                      << "  TOTAL COMP + COMM TIME           : " << t_total_comp_comm << " s\n"
+                      << "  SUM OF ALL INLINE STAGES         : " << t_sum_stages << " s\n"
+                      << "  TOTAL TIME                       : " << t_total_vmult << " s\n"
+                      << "========================================================"
+                      << std::endl;
+          }
+      }
+  }
+
+  template <int dim, int fe_degree>
+  void
   LaplaceProblem<dim, fe_degree>::test()
   {
     pcout << std::endl << std::endl;
@@ -998,16 +1076,23 @@ namespace multigrid
 
         compute_rhs();
 
-        // pcout << "Total setup time: " << setup_time << std::endl;
+        pcout << "Total setup time: " << setup_time << std::endl;
 
-        // solve(n_pre_smooth, n_post_smooth);
-        // pcout << std::endl;
+        solve(n_pre_smooth, n_post_smooth);
+        pcout << std::endl;
 
-        // pcout << std::endl;
-        // pcout << std::endl;
-        // matvec_ghost_timing();
-        // pcout << std::endl;
-        // pcout << std::endl;
+        pcout << std::endl;
+        pcout << std::endl;
+        pcout << "Timings computed using old method" << std::endl;
+        pcout << "----------------------------------" << std::endl;
+        matvec_ghost_timing();
+        pcout <<"----------------------------------" << std::endl;
+        pcout << "Timings computed using new method" << std::endl;
+        pcout << "----------------------------------" << std::endl;
+        matvec_ghost_timing_new();
+        pcout << "----------------------------------" << std::endl;
+        pcout << std::endl;
+        pcout << std::endl;
 
         if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
           {
