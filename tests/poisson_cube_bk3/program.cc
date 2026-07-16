@@ -34,7 +34,6 @@
 
 #include "multigrid/portable_geometric_transfer.h"
 #include "multigrid/portable_polynomial_transfer.h"
-#include "multigrid/portable_v_cycle_multigrid.h"
 #include "operators/portable_laplace_operator.h"
 #include "operators/portable_laplace_operator_bk3.h"
 #include "operators/portable_laplace_operator.h"
@@ -313,18 +312,8 @@ namespace multigrid
 
     for (unsigned int level = 0; level < p_levels.size(); ++level)
       {
-<<<<<<< HEAD
         p_level_fes[level] = std::make_unique<FE_Q<dim>>(p_levels[p_levels.size() - 1 - level]);
       }
-=======
-        p_level_fes[level] =
-          std::make_unique<FE_Q<dim>>(p_levels[p_levels.size() - 1 - level]);
-
-        pcout << p_levels[p_levels.size() - 1 - level] << "  ";
-      }
-    pcout << std::endl;
-
->>>>>>> 7d68ce1 (add batched fp64 test)
 
     level_dof_handlers.resize(0, coarse_triangulations.size() - 1 + p_level_fes.max_level());
     level_constraints.resize(0, level_dof_handlers.max_level());
