@@ -878,7 +878,7 @@ namespace multigrid
         Kokkos::fence();
         overall_timer.stop();
 
-        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0 && level == level_matrices.max_level())
           {
             double t_alloc         = level_timers["allocation_and_setup"].wall_time() / n_mv;
             double t_ghost_start   = level_timers["mpi_ghost_start"].wall_time() / n_mv;
