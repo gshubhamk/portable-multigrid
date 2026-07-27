@@ -75,6 +75,22 @@ namespace Portable
     void
     compute_G_tensors();
 
+    ~LaplaceOperatorBK3() override
+    {
+  #ifdef WITH_NVSHMEM
+      if (nvshmem_local_src)
+        {
+          nvshmem_free(nvshmem_local_src);
+          nvshmem_local_src = nullptr;
+        }
+      if (nvshmem_remote_ghost_dst)
+        {
+          nvshmem_free(nvshmem_remote_ghost_dst);
+          nvshmem_remote_ghost_dst = nullptr;
+        }
+  #endif
+    }
+
   private:
     using TeamHandle =
       Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>::member_type;
@@ -103,6 +119,19 @@ namespace Portable
       dof_indices_per_color;
 
     std::vector<Kokkos::View<number *, MemorySpace::Default::kokkos_space>> G_tensors;
+
+#ifdef WITH_NVSHMEM
+    // NVSHMEM symmetric memory buffers
+    number *nvshmem_local_src        = nullptr;
+    number *nvshmem_remote_ghost_dst = nullptr;
+
+    std::size_t local_size = 0;
+    std::size_t ghost_size = 0;
+
+    // Index maps for direct peer-to-peer rank targeting inside GPU kernels
+    Kokkos::View<int *, MemorySpace::Default::kokkos_space>         ghost_target_pe;
+    Kokkos::View<std::size_t *, MemorySpace::Default::kokkos_space> ghost_remote_offset;
+#endif    
   };
 
   template <int dim, int fe_degree, typename number>
@@ -127,6 +156,30 @@ namespace Portable
     setup_dof_indices_per_color();
 
     compute_G_tensors();
+
+#ifdef WITH_NVSHMEM
+    // Query local and ghost sizes from partitioner
+    const auto partitioner = matrix_free.get_vector_partitioner();
+    local_size  = partitioner->local_size();
+    ghost_size  = partitioner->n_ghost_indices();
+
+    // Allocate symmetric memory across all GPUs on the NVSHMEM heap
+    if (local_size > 0)
+      {
+        nvshmem_local_src = static_cast<number *>(
+          nvshmem_malloc(local_size * sizeof(number)));
+        AssertThrow(nvshmem_local_src != nullptr,
+                    dealii::ExcMessage("NVSHMEM malloc failed for local_src!"));
+      }
+
+    if (ghost_size > 0)
+      {
+        nvshmem_remote_ghost_dst = static_cast<number *>(
+          nvshmem_malloc(ghost_size * sizeof(number)));
+        AssertThrow(nvshmem_remote_ghost_dst != nullptr,
+                    dealii::ExcMessage("NVSHMEM malloc failed for ghost_dst!"));
+      }
+#endif
   }
 
   template <int dim, int fe_degree, typename number>
@@ -187,7 +240,49 @@ namespace Portable
             //     threadsPerBlock);
           }
       };
+#ifdef WITH_NVSHMEM
+    // Construct non-owning view over symmetric NVSHMEM memory
+    // If nvshmem_local_src is allocated, we wrap it directly; otherwise fallback to src_device.
+    const DeviceVector<number> src_nvshmem_view =
+      (nvshmem_local_src != nullptr && local_size > 0)
+        ? DeviceVector<number>(nvshmem_local_src, local_size)
+        : src_device;
 
+    // Helper to process one color using src_nvshmem_view
+    auto do_color_nvshmem = [&](const unsigned int color)
+      {
+        const unsigned int n_cells = colored_graph[color].size();
+
+        if (n_cells > 0)
+          {
+            const auto &precomputed_data = matrix_free.get_data(color);
+            BK3::Parallel::KokkosKernel<dim, fe_degree + 1, fe_degree + 1, number>(
+              precomputed_data.shape_values,
+              precomputed_data.co_shape_gradients,
+              G_tensors[color],
+              src_nvshmem_view,            // DIRECT SYMMETRIC BUFFER (No deep_copy!)
+              dst_device,
+              dof_indices_per_color[color],
+              n_cells,
+              numBlocks,
+              threadsPerBlock);
+          }
+      };
+
+    // Synchronize NVSHMEM stream across PEs
+    nvshmemx_barrier_all_on_stream(0);
+
+    // Launch element kernels reading directly from the zero-copy symmetric buffer
+    for (unsigned int color = 0; color < n_colors; ++color)
+      {
+        if (colored_graph[color].size() > 0)
+          do_color_nvshmem(color);
+      }
+
+    Kokkos::fence();
+    nvshmem_quiet();
+
+#else
     if (matrix_free.use_overlap_communication_computation())
       {
         src.update_ghost_values_start(0);
@@ -231,6 +326,7 @@ namespace Portable
       }
 
     src.zero_out_ghost_values();
+#endif
     matrix_free.copy_constrained_values(src, dst);
   }
 
@@ -516,6 +612,18 @@ namespace Portable
             Kokkos::fence();
           }
       }
+#ifdef WITH_NVSHMEM
+  const auto partitioner = matrix_free.get_vector_partitioner();
+  local_size = partitioner->local_size();
+  ghost_size = partitioner->n_ghost_indices();
+
+  // Allocate symmetric device heap buffers across all PEs
+  if (local_size > 0)
+    nvshmem_local_src = static_cast<number *>(nvshmem_malloc(local_size * sizeof(number)));
+
+  if (ghost_size > 0)
+    nvshmem_remote_ghost_dst = static_cast<number *>(nvshmem_malloc(ghost_size * sizeof(number)));
+#endif
   }
 
 
