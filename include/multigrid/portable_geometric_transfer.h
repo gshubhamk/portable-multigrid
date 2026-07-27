@@ -780,7 +780,7 @@ namespace Portable
   template <int dim, int fe_degree, typename number>
   GeometricTransfer<dim, fe_degree, number>::GeometricTransfer()
   {}
-
+  
   template <int dim, int fe_degree, typename number>
   void
   GeometricTransfer<dim, fe_degree, number>::prolongate_and_add_internal(
@@ -789,35 +789,26 @@ namespace Portable
   {
     using TeamPolicy = Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
 
-    using Functor = h_mg_transfer::CellProlongationKernel<dim, fe_degree, number>;
-
     MemorySpace::Default::kokkos_space::execution_space exec;
 
+#ifdef WITH_NVSHMEM
+    // Direct zero-copy symmetric buffer view for GPU execution
+    DeviceVector<number> src_device(
+      src.get_values(),
+      src.locally_owned_size() + src.get_partitioner()->n_ghost_indices());
+    DeviceVector<number> dst_device(
+      dst.get_values(),
+      dst.locally_owned_size() + dst.get_partitioner()->n_ghost_indices());
+#else
     DeviceVector<number> src_device(src.get_values(), src.size()),
       dst_device(dst.get_values(), dst.locally_owned_size());
+#endif
 
     unsigned int scheme_index = 0;
     for (auto &scheme : transfer_schemes)
       {
         if (scheme.n_coarse_cells == 0)
           continue;
-
-        h_mg_transfer::CellProlongationKernel<dim, fe_degree, number> prolongator;
-
-        auto team_policy = TeamPolicy(exec, scheme.n_coarse_cells, Kokkos::AUTO);
-
-        h_mg_transfer::ApplyCellKernel<dim, fe_degree, number, Functor> apply_prolongation(
-          prolongator,
-          scheme.prolongation_matrix_shared_memory,
-          scheme.weights,
-          scheme.dof_indices_coarse,
-          scheme.dof_indices_fine,
-          src,
-          dst);
-
-        Kokkos::parallel_for("prolongate_and_add_h_transfer_scheme_" + std::to_string(scheme_index),
-                             team_policy,
-                             apply_prolongation);
 
         constexpr bool is_serial =
           std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
@@ -829,18 +820,6 @@ namespace Portable
             numBlocks       = 1u;
             threadsPerBlock = 1u;
           }
-
-
-        // BK1::Parallel::KokkosProlongationKernel<dim, fe_degree + 1, 2 * fe_degree + 1, number>(
-        //   scheme.prolongation_matrix_shared_memory,
-        //   src_device,
-        //   dst_device,
-        //   scheme.dof_indices_coarse,
-        //   scheme.dof_indices_fine,
-        //   scheme.weights,
-        //   scheme.n_coarse_cells,
-        //   numBlocks,
-        //   threadsPerBlock);
 
         BK1::Parallel::
           KokkosProlongationBatchedKernel<dim, fe_degree + 1, 2 * fe_degree + 1, number>(
@@ -864,38 +843,26 @@ namespace Portable
     LinearAlgebra::distributed::Vector<number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<number, MemorySpace::Default> &src) const
   {
-    using TeamPolicy = Kokkos::TeamPolicy<MemorySpace::Default::kokkos_space::execution_space>;
-    using Functor    = h_mg_transfer::CellRestrictionKernel<dim, fe_degree, number>;
-
     MemorySpace::Default::kokkos_space::execution_space exec;
 
+#ifdef WITH_NVSHMEM
+    // Direct zero-copy symmetric buffer view for GPU restriction
+    DeviceVector<number> src_device(
+      src.get_values(),
+      src.locally_owned_size() + src.get_partitioner()->n_ghost_indices());
+    DeviceVector<number> dst_device(
+      dst.get_values(),
+      dst.locally_owned_size() + dst.get_partitioner()->n_ghost_indices());
+#else
     DeviceVector<number> src_device(src.get_values(), src.size()),
       dst_device(dst.get_values(), dst.locally_owned_size());
-
+#endif
 
     unsigned int scheme_index = 0;
     for (auto &scheme : transfer_schemes)
       {
         if (scheme.n_coarse_cells == 0)
           continue;
-
-        // h_mg_transfer::CellRestrictionKernel<dim, fe_degree, number> restrictor;
-
-        // auto team_policy = TeamPolicy(exec, scheme.n_coarse_cells, Kokkos::AUTO);
-
-        // h_mg_transfer::ApplyCellKernel<dim, fe_degree, number, Functor> apply_restriction(
-        //   restrictor,
-        //   scheme.prolongation_matrix_shared_memory,
-        //   scheme.weights,
-        //   scheme.dof_indices_coarse,
-        //   scheme.dof_indices_fine,
-        //   src,
-        //   dst);
-
-        // Kokkos::parallel_for("restrict_and_add_h_transfer_scheme_" +
-        // std::to_string(scheme_index),
-        //                      team_policy,
-        //                      apply_restriction);
 
         constexpr bool is_serial =
           std::is_same<Kokkos::DefaultExecutionSpace, Kokkos::DefaultHostExecutionSpace>::value;
@@ -907,22 +874,6 @@ namespace Portable
             numBlocks       = 1u;
             threadsPerBlock = 1u;
           }
-
-
-        // BK1::Parallel::KokkosRestrictionKernel<dim,
-        //                                        fe_degree + 1,
-        //                                        2 * fe_degree + 1,
-        //                                        number>(
-        //   scheme.prolongation_matrix_shared_memory,
-        //   src_device,
-        //   dst_device,
-        //   scheme.dof_indices_coarse,
-        //   scheme.dof_indices_fine,
-        //   scheme.weights,
-        //   scheme.n_coarse_cells,
-        //   numBlocks,
-        //   threadsPerBlock);
-
 
         BK1::Parallel::
           KokkosRestrictionBatchedKernel<dim, fe_degree + 1, 2 * fe_degree + 1, number>(
@@ -939,8 +890,6 @@ namespace Portable
         ++scheme_index;
       }
   }
-
-
   template <int dim, int fe_degree, typename number>
   void
   GeometricTransfer<dim, fe_degree, number>::reinit(

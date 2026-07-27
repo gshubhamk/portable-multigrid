@@ -293,7 +293,7 @@ namespace Portable
     GeometricTransferCore<dim, number>::GeometricTransferCore()
       : vec_fine_needs_ghost_update(true)
     {}
-
+    
     template <int dim, typename number>
     void
     GeometricTransferCore<dim, number>::prolongate_and_add(VectorType       &dst,
@@ -314,22 +314,30 @@ namespace Portable
       if (use_src_inplace == false)
         this->vec_coarse.copy_locally_owned_data_from(src);
 
+#ifndef WITH_NVSHMEM
       if ((use_src_inplace == false) || (src_ghosts_have_been_set == false))
         this->update_ghost_values(*vec_coarse_ptr);
+#endif
 
       if (use_dst_inplace == false)
         *vec_fine_ptr = number(0.);
 
       this->prolongate_and_add_internal(*vec_fine_ptr, *vec_coarse_ptr);
 
+#ifndef WITH_NVSHMEM
       if (this->vec_fine_needs_ghost_update || use_dst_inplace == false)
         this->compress(*vec_fine_ptr, VectorOperation::add);
+#else
+      nvshmem_quiet();
+#endif
 
       if (use_dst_inplace == false)
         dst += this->vec_fine;
 
+#ifndef WITH_NVSHMEM
       if (use_src_inplace && (src_ghosts_have_been_set == false))
         this->zero_out_ghost_values(*vec_coarse_ptr);
+#endif
     }
 
     template <int dim, typename number>
@@ -352,19 +360,24 @@ namespace Portable
       if (use_src_inplace == false)
         this->vec_fine.copy_locally_owned_data_from(src);
 
+#ifndef WITH_NVSHMEM
       if ((use_src_inplace == false) ||
           (vec_fine_needs_ghost_update && (src_ghosts_have_been_set == false)))
         this->update_ghost_values(*vec_fine_ptr);
+#endif
 
       if (use_dst_inplace == false)
         *vec_coarse_ptr = number(0.0);
 
-      // since we might add into the ghost values and call compress
+#ifndef WITH_NVSHMEM
+      // Since we might add into ghost values and call compress in standard MPI
       this->zero_out_ghost_values(*vec_coarse_ptr);
+#endif
 
       this->restrict_and_add_internal(*vec_coarse_ptr, *vec_fine_ptr);
 
-      // clean up related to update_ghost_values()
+#ifndef WITH_NVSHMEM
+      // Clean up related to update_ghost_values()
       if (vec_fine_needs_ghost_update == false && use_src_inplace == false)
         this->zero_out_ghost_values(*vec_fine_ptr); // internal vector (DG)
       else if (vec_fine_needs_ghost_update && use_src_inplace == false)
@@ -373,6 +386,9 @@ namespace Portable
         this->zero_out_ghost_values(*vec_fine_ptr); // external vector
 
       this->compress(*vec_coarse_ptr, VectorOperation::add);
+#else
+      nvshmem_quiet();
+#endif
 
       if (use_dst_inplace == false)
         dst += this->vec_coarse;
