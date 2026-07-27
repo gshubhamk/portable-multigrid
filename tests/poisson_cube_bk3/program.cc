@@ -40,6 +40,10 @@
 
 #include "portable_multigrid_solver.h"
 
+#ifdef WITH_NVSHMEM
+#  include <nvshmem.h>
+#  include <nvshmemx.h>
+#endif
 
 namespace multigrid
 {
@@ -124,6 +128,9 @@ namespace multigrid
 
     void
     matvec_ghost_timing_new();
+
+    void
+    matvec_ghost_timing_nvshmem();
 
     MPI_Comm mpi_communicator;
 
@@ -897,6 +904,57 @@ namespace multigrid
 
   template <int dim, int fe_degree>
   void
+  LaplaceProblem<dim, fe_degree>::matvec_ghost_timing_nvshmem()
+  {
+    MGLevelObject<LinearAlgebra::distributed::Vector<vcycle_number, MemorySpace::Default>>
+      dummy_solution(0, level_matrices.max_level()), dummy_rhs(0, level_matrices.max_level());
+
+    for (unsigned int level = 0; level <= level_matrices.max_level(); ++level)
+      {
+        level_matrices[level]->initialize_dof_vector(dummy_solution[level]);
+        level_matrices[level]->initialize_dof_vector(dummy_rhs[level]);
+      }
+
+    const unsigned int n_mv = 10;
+    Timer time;
+
+    for (unsigned int level = 0; level <= level_matrices.max_level(); ++level)
+      {
+        double best_nvshmem_time = 1e10;
+
+        for (unsigned int iter = 0; iter < 5; ++iter)
+          {
+            Kokkos::fence();
+            time.restart();
+
+            for (unsigned int i = 0; i < n_mv; ++i)
+              {
+                // Invokes vmult(), which executes NVSHMEM path under #ifdef WITH_NVSHMEM
+                level_matrices[level]->vmult(dummy_solution[level], dummy_rhs[level]);
+              }
+
+            Kokkos::fence();
+
+            Utilities::MPI::MinMaxAvg stat =
+              Utilities::MPI::min_max_avg(time.wall_time() / n_mv, MPI_COMM_WORLD);
+
+            best_nvshmem_time = std::min(best_nvshmem_time, stat.max);
+          }
+
+        if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0 && level == level_matrices.max_level())
+          {
+            std::cout << "========================================================\n"
+                      << "NVSHMEM MATVEC TIMING (Level " << level << ", NDOF = " << dof_handler.n_dofs() << ")\n"
+                      << "========================================================\n"
+                      << "  BEST NVSHMEM MATVEC WALL TIME : " << best_nvshmem_time << " s\n"
+                      << "========================================================"
+                      << std::endl;
+          }
+      }
+  }
+
+  template <int dim, int fe_degree>
+  void
   LaplaceProblem<dim, fe_degree>::test()
   {
     pcout << std::endl << std::endl;
@@ -1062,6 +1120,10 @@ namespace multigrid
         pcout << "----------------------------------" << std::endl;
         matvec_ghost_timing_new();
         pcout << "----------------------------------" << std::endl;
+	pcout << "Timings computed using NVSHMEM method (vmult)" << std::endl;
+        pcout << "----------------------------------" << std::endl;
+        matvec_ghost_timing_nvshmem();
+        pcout << "----------------------------------" << std::endl;
         pcout << std::endl;
         pcout << std::endl;
 
@@ -1133,6 +1195,18 @@ main(int argc, char *argv[])
 
       Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 1);
 
+#ifdef WITH_NVSHMEM
+      // Initialize NVSHMEM using MPI Communicator
+      nvshmemx_init_attr_t attr;
+      attr.mpi_comm = MPI_COMM_WORLD;
+      int status = nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
+      AssertThrow(status == 0, dealii::ExcMessage("NVSHMEM initialization failed!"));
+
+      if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
+        std::cout << "NVSHMEM initialized successfully across "
+                  << nvshmem_n_pes() << " PEs." << std::endl;
+#endif
+
       unsigned int degree                            = numbers::invalid_unsigned_int;
       std::size_t  maxsize                           = static_cast<std::size_t>(-1);
       std::size_t  minsize                           = 1;
@@ -1183,7 +1257,7 @@ main(int argc, char *argv[])
                   << "Use overlap_communication_computation: " << overlap_communication_computation
                   << std::endl
                   << std::endl;
-
+{
       LaplaceRunTime<dimension, minimal_degree, maximal_degree> run(
         degree,
         minsize,
@@ -1192,6 +1266,12 @@ main(int argc, char *argv[])
         n_post_smooth,
         use_doubling_mesh,
         overlap_communication_computation);
+}
+
+#ifdef WITH_NVSHMEM
+      nvshmem_finalize();
+#endif
+
     }
   catch (std::exception &exc)
     {
