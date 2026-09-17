@@ -399,21 +399,31 @@ namespace multigrid
         const auto &system_matrix = *level_matrices.back();
         system_matrix.initialize_dof_vector(solution_device);
       }
+
     else
       {
-        fine_level_matrix =
-          std::make_unique<Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, full_number>>(
-            mapping,
-            level_dof_handlers.back(),
-            fine_level_constraints,
-            overlap_communication_computation);
+        // Downcast the fine-level float matrix to access its topology
+        const auto *fine_float_matrix =
+          dynamic_cast<const Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, vcycle_number> *>(
+            level_matrices.back().get());
 
+        Assert(fine_float_matrix != nullptr, ExcInternalError());
+
+        auto dg_fine_level_matrix =
+          std::make_unique<Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, full_number>>();
+
+        dg_fine_level_matrix->reinit_with_shared_topology(*fine_float_matrix,
+                                                          mapping,
+                                                          level_dof_handlers.back(),
+                                                          fine_level_constraints,
+                                                          overlap_communication_computation);
+
+        fine_level_matrix = std::move(dg_fine_level_matrix);
         fine_level_matrix->initialize_dof_vector(solution_device);
       }
 
-
     system_rhs_device.reinit(solution_device);
-    ghost_solution_host.reinit(locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
+    //ghost_solution_host.reinit(locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
     Kokkos::fence();
 
     setup_time += time.wall_time();
@@ -581,11 +591,13 @@ namespace multigrid
   LaplaceProblem<dim, fe_degree>::solve(const unsigned int n_pre_smooth,
                                         const unsigned int n_post_smooth)
   {
-    multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType> *solver;
+    std::unique_ptr<
+      multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType>>
+      solver;
 
     if constexpr (std::is_same_v<full_number, vcycle_number>)
-      solver =
-        new multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType>(
+      solver = std::make_unique<
+        multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType>>(
           level_matrices.back(),
           level_dof_handlers,
           level_constraints,
@@ -596,8 +608,8 @@ namespace multigrid
           n_pre_smooth,
           n_post_smooth);
     else
-      solver =
-        new multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType>(
+      solver = std::make_unique<
+        multigrid::MultigridSolver<dim, fe_degree, vcycle_number, full_number, SmootherType>>(
           fine_level_matrix,
           level_dof_handlers,
           level_constraints,
