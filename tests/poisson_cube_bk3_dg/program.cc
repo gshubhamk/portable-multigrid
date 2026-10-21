@@ -541,51 +541,32 @@ namespace multigrid
   {
     Timer time;
 
-    LinearAlgebra::distributed::Vector<full_number, MemorySpace::Host> system_rhs_host(
-      locally_owned_dofs, locally_relevant_dofs, mpi_communicator);
+    system_rhs_device.reinit(locally_owned_dofs, mpi_communicator);
 
-    const QGauss<dim> quadrature_formula(fe_degree + 1);
-
-    FEValues<dim> fe_values(fe, quadrature_formula, update_values | update_JxW_values);
-
-    const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
-    const unsigned int n_q_points    = quadrature_formula.size();
-
-    Vector<full_number> cell_rhs(dofs_per_cell);
-
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    for (const auto &cell : dof_handler.active_cell_iterators())
+    if constexpr (std::is_same_v<full_number, vcycle_number>)
       {
-        if (cell->is_locally_owned())
-          {
-            cell_rhs = 0;
+        auto *op_dg = dynamic_cast<
+          dealii::Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, full_number> *>(
+          level_matrices.back().get());
 
-            fe_values.reinit(cell);
-
-            for (unsigned int q_index = 0; q_index < n_q_points; ++q_index)
-              for (unsigned int i = 0; i < dofs_per_cell; ++i)
-                cell_rhs(i) += (fe_values.shape_value(i, q_index) * 1.0 * fe_values.JxW(q_index));
-
-            cell->get_dof_indices(local_dof_indices);
-            level_constraints.back().distribute_local_to_global(cell_rhs,
-                                                                local_dof_indices,
-                                                                system_rhs_host);
-          }
+        Assert(op_dg != nullptr, dealii::ExcInternalError());
+        op_dg->compute_rhs(system_rhs_device, 1.0);
       }
+    else
+      {
+        auto *op_dg = dynamic_cast<
+          dealii::Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, full_number> *>(
+          fine_level_matrix.get());
 
-    system_rhs_host.compress(VectorOperation::add);
-    LinearAlgebra::ReadWriteVector<full_number> rw_vector(locally_owned_dofs);
-
-    rw_vector.import_elements(system_rhs_host, VectorOperation::insert);
-    system_rhs_device.import_elements(rw_vector, VectorOperation::insert);
+        Assert(op_dg != nullptr, dealii::ExcInternalError());
+        op_dg->compute_rhs(system_rhs_device, 1.0);
+      }
 
     setup_time += time.wall_time();
 
-    time_details << "Compute rhs   (CPU/wall) " << time.cpu_time() << "s/" << time.wall_time()
-                 << 's' << std::endl;
+    time_details << "Compute rhs   (CPU/wall) " << time.cpu_time() << "s/"
+                 << time.wall_time() << 's' << std::endl;
   }
-
   template <int dim, int fe_degree>
   void
   LaplaceProblem<dim, fe_degree>::solve(const unsigned int n_pre_smooth,

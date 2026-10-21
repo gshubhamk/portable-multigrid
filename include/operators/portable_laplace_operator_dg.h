@@ -68,6 +68,10 @@ namespace Portable
     void
     compute_diagonal() override;
 
+    void
+    compute_rhs(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &rhs,
+                const Number value = 1.0) const;
+
     std::shared_ptr<
       DiagonalMatrix<LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>>>
     get_matrix_diagonal_inverse() const override;
@@ -1186,6 +1190,136 @@ namespace Portable
                           "should be zero"));
         raw_diagonal[i] = 1. / raw_diagonal[i];
       });
+  }
+
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_rhs(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &rhs,
+    const Number value) const
+  {
+    rhs = 0.0;
+
+    const unsigned int n_cells = this->cell_local_info.size();
+    if (n_cells == 0)
+      return;
+
+    DeviceVector<Number> rhs_device(rhs.get_values(), rhs.locally_owned_size());
+
+    constexpr unsigned int n_1d         = fe_degree + 1;
+    constexpr unsigned int n_local_dofs = Utilities::pow(n_1d, dim);
+
+    auto dof_indices_view = this->dof_indices;
+    auto shape_values     = this->shape_data.shape_values;
+
+    // Fetch cell extent metrics directly for Cartesian grid elements
+    const auto &triangulation = this->dof_handler->get_triangulation();
+    const double cell_volume  = triangulation.begin_active()->measure();
+
+    // 1D Gauss quadrature weights
+    std::vector<Number> w1d(n_q_points_1d);
+    for (unsigned int q = 0; q < n_q_points_1d; ++q)
+      w1d[q] = static_cast<Number>(this->quadrature_1d->weight(q));
+
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> quad_weights(
+      Kokkos::view_alloc("quad_weights_1d", Kokkos::WithoutInitializing), n_q_points_1d);
+    auto quad_weights_host = Kokkos::create_mirror_view(quad_weights);
+    for (unsigned int q = 0; q < n_q_points_1d; ++q)
+      quad_weights_host(q) = w1d[q];
+    Kokkos::deep_copy(quad_weights, quad_weights_host);
+
+    if constexpr (dim == 3)
+      {
+        Kokkos::parallel_for(
+          "Compute_RHS_3D_DG",
+          Kokkos::RangePolicy<typename MemorySpace::Default::kokkos_space::execution_space>(
+            0, n_cells),
+          KOKKOS_LAMBDA(const int cell_id) {
+            Number local_rhs[n_local_dofs];
+            for (unsigned int i = 0; i < n_local_dofs; ++i)
+              local_rhs[i] = 0.0;
+
+            for (unsigned int qz = 0; qz < n_1d; ++qz)
+              for (unsigned int qy = 0; qy < n_1d; ++qy)
+                for (unsigned int qx = 0; qx < n_1d; ++qx)
+                  {
+                    const Number weight_xyz =
+                      quad_weights(qx) * quad_weights(qy) * quad_weights(qz);
+
+                    for (unsigned int iz = 0; iz < n_1d; ++iz)
+                      {
+                        const Number phi_z = shape_values(iz * n_1d + qz);
+                        for (unsigned int iy = 0; iy < n_1d; ++iy)
+                          {
+                            const Number phi_y = shape_values(iy * n_1d + qy);
+                            for (unsigned int ix = 0; ix < n_1d; ++ix)
+                              {
+                                const Number phi_x = shape_values(ix * n_1d + qx);
+                                const unsigned int i =
+                                  ix + iy * n_1d + iz * n_1d * n_1d;
+
+                                local_rhs[i] += value * phi_x * phi_y * phi_z *
+                                                weight_xyz * cell_volume;
+                              }
+                          }
+                      }
+                  }
+
+            // Scatter to global device vector
+            for (unsigned int i = 0; i < n_local_dofs; ++i)
+              {
+                const unsigned int dof_idx = dof_indices_view(i, cell_id);
+                if (dof_idx != numbers::invalid_unsigned_int)
+                  {
+                    Kokkos::atomic_add(&rhs_device(dof_idx), local_rhs[i]);
+                  }
+              }
+          });
+      }
+    else // dim == 2
+      {
+        Kokkos::parallel_for(
+          "Compute_RHS_2D_DG",
+          Kokkos::RangePolicy<typename MemorySpace::Default::kokkos_space::execution_space>(
+            0, n_cells),
+          KOKKOS_LAMBDA(const int cell_id) {
+            Number local_rhs[n_local_dofs];
+            for (unsigned int i = 0; i < n_local_dofs; ++i)
+              local_rhs[i] = 0.0;
+
+            for (unsigned int qy = 0; qy < n_1d; ++qy)
+              for (unsigned int qx = 0; qx < n_1d; ++qx)
+                {
+                  const Number weight_xy = quad_weights(qx) * quad_weights(qy);
+
+                  for (unsigned int iy = 0; iy < n_1d; ++iy)
+                    {
+                      const Number phi_y = shape_values(iy * n_1d + qy);
+                      for (unsigned int ix = 0; ix < n_1d; ++ix)
+                        {
+                          const Number phi_x = shape_values(ix * n_1d + qx);
+                          const unsigned int i = ix + iy * n_1d;
+
+                          local_rhs[i] +=
+                            value * phi_x * phi_y * weight_xy * cell_volume;
+                        }
+                    }
+                }
+
+            // Scatter to global device vector
+            for (unsigned int i = 0; i < n_local_dofs; ++i)
+              {
+                const unsigned int dof_idx = dof_indices_view(i, cell_id);
+                if (dof_idx != numbers::invalid_unsigned_int)
+                  {
+                    Kokkos::atomic_add(&rhs_device(dof_idx), local_rhs[i]);
+                  }
+              }
+          });
+      }
+
+    Kokkos::fence();
+    rhs.compress(VectorOperation::add);
   }
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
