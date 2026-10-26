@@ -9,6 +9,10 @@
 
 #include <deal.II/matrix_free/portable_matrix_free.h>
 
+#include <memory>
+
+#include "base/portable_halo_exchange.h"
+
 DEAL_II_NAMESPACE_OPEN
 
 namespace Portable
@@ -58,6 +62,47 @@ namespace Portable
 
     virtual const std::shared_ptr<const Utilities::MPI::Partitioner> &
     get_vector_partitioner() const = 0;
+
+    // Use HaloExchange instead of update_ghost_values() and
+    // compress(VectorOperation::add) of the vectors in vmult() and
+    // vmult_dummy() (without overlap of communication and computation). Must
+    // be called after the operator is initialized.
+    void
+    enable_fused_halo_exchange(const bool enable = true)
+    {
+      if (enable)
+        halo_exchange = std::make_shared<HaloExchange<Number>>(get_vector_partitioner());
+      else
+        halo_exchange.reset();
+    }
+
+    bool
+    uses_fused_halo_exchange() const
+    {
+      return halo_exchange != nullptr;
+    }
+
+  protected:
+    void
+    exchange_ghost_values(
+      const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
+    {
+      if (halo_exchange)
+        halo_exchange->update_ghost_values(vec);
+      else
+        vec.update_ghost_values();
+    }
+
+    void
+    compress_add(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
+    {
+      if (halo_exchange)
+        halo_exchange->compress_add(vec);
+      else
+        vec.compress(VectorOperation::add);
+    }
+
+    std::shared_ptr<HaloExchange<Number>> halo_exchange;
   };
 
   class OperatorDispatchFactory

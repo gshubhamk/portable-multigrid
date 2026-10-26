@@ -226,14 +226,14 @@ namespace Portable
       }
     else
       {
-        src.update_ghost_values();
+        this->exchange_ghost_values(src);
 
         for (unsigned int color = 0; color < n_colors; ++color)
           {
             if (colored_graph[color].size() > color)
               do_color(color);
           }
-        dst.compress(VectorOperation::add);
+        this->compress_add(dst);
       }
 
     src.zero_out_ghost_values();
@@ -294,7 +294,7 @@ namespace Portable
           }
       };
 
-    src.update_ghost_values();
+    this->exchange_ghost_values(src);
 
     for (unsigned int color = 0; color < n_colors; ++color)
       if (colored_graph[color].size() > color)
@@ -302,7 +302,7 @@ namespace Portable
 
     Kokkos::fence();
 
-    dst.compress(VectorOperation::add);
+    this->compress_add(dst);
 
     src.zero_out_ghost_values();
     matrix_free.copy_constrained_values(src, dst);
@@ -444,7 +444,7 @@ namespace Portable
     else
       {
         if (ghost_exchange_on)
-          src.update_ghost_values();
+          this->exchange_ghost_values(src);
 
         if (computation_on)
           {
@@ -459,7 +459,7 @@ namespace Portable
 
         if (ghost_exchange_on)
           {
-            dst.compress(VectorOperation::add);
+            this->compress_add(dst);
             src.zero_out_ghost_values();
             matrix_free.copy_constrained_values(src, dst);
           }

@@ -568,7 +568,7 @@ namespace Portable
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default>       &dst,
     const LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &src) const
   {
-    src.update_ghost_values();
+    this->exchange_ghost_values(src);
 
     const unsigned int locally_relevant_size = cell_local_info.size() * n_local_dofs;
 
@@ -669,7 +669,7 @@ namespace Portable
     const bool                                                              computation_on) const
   {
     if (ghost_exchange_on)
-      src.update_ghost_values();
+      this->exchange_ghost_values(src);
 
     const unsigned int locally_relevant_size = cell_local_info.size() * n_local_dofs;
 
