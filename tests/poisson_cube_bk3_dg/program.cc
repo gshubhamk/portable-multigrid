@@ -61,6 +61,11 @@ namespace multigrid
   using vcycle_number = float;
   using full_number   = double;
 
+  // Minimal number of cells per MPI rank on the geometric coarse levels. A
+  // larger value keeps the coarse levels on fewer ranks (agglomeration). Can
+  // be overwritten by the seventh command line argument.
+  unsigned int coarse_granularity = 16384;
+
 
 
   template <int dim, int fe_degree>
@@ -263,12 +268,27 @@ namespace multigrid
     Timer time;
 
     coarse_triangulations = MGTransferGlobalCoarseningTools::create_geometric_coarsening_sequence(
-      triangulation, RepartitioningPolicyTools::MinimalGranularityPolicy<dim>(16));
+      triangulation, RepartitioningPolicyTools::MinimalGranularityPolicy<dim>(coarse_granularity));
 
     setup_time += time.wall_time();
 
     time_details << "Coarse triangulations created  (CPU/wall)" << time.cpu_time() << "s/"
                  << time.wall_time() << 's' << std::endl;
+
+    for (unsigned int level = 0; level < coarse_triangulations.size(); ++level)
+      {
+        unsigned int owns_cells = 0;
+        for (const auto &cell : coarse_triangulations[level]->active_cell_iterators())
+          if (cell->is_locally_owned())
+            {
+              owns_cells = 1;
+              break;
+            }
+        const unsigned int n_active_ranks = Utilities::MPI::sum(owns_cells, MPI_COMM_WORLD);
+        time_details << "Coarse level " << level << ": "
+                     << coarse_triangulations[level]->n_global_active_cells() << " cells on "
+                     << n_active_ranks << " ranks" << std::endl;
+      }
   }
 
 
@@ -1008,10 +1028,12 @@ main(int argc, char *argv[])
           if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
             std::cout << "Expected at least one argument." << std::endl
                       << "Usage:" << std::endl
-                      << "./program degree minsize maxsize n_pre_smooth n_post_smooth doubling"
-                      << std::endl
+                      << "./program degree minsize maxsize n_pre_smooth n_post_smooth doubling "
+                      << "coarse_granularity" << std::endl
                       << "The parameters degree to n_post_smooth are integers, "
-                      << "the last selects between a square mesh or a doubling mesh" << std::endl;
+                      << "doubling selects between a square mesh or a doubling mesh, "
+                      << "coarse_granularity is the minimal number of cells per rank "
+                      << "on the coarse levels" << std::endl;
           return 1;
         }
 
@@ -1027,6 +1049,10 @@ main(int argc, char *argv[])
         n_post_smooth = std::atoi(argv[5]);
       if (argc > 6)
         use_doubling_mesh = argv[6][0] == 'd';
+      if (argc > 7)
+        coarse_granularity = std::atoi(argv[7]);
+
+      AssertThrow(coarse_granularity > 0, ExcMessage("coarse_granularity must be positive."));
 
       if (Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0)
         std::cout << "Settings of parameters: " << std::endl
@@ -1038,6 +1064,7 @@ main(int argc, char *argv[])
                   << "Number of pre-smoother iters:   " << n_pre_smooth << std::endl
                   << "Number of post-smoother iters:  " << n_post_smooth << std::endl
                   << "Use doubling mesh:              " << use_doubling_mesh << std::endl
+                  << "Coarse level granularity:       " << coarse_granularity << std::endl
                   << std::endl;
 
       LaplaceRunTime<dimension, minimal_degree, maximal_degree> run(
