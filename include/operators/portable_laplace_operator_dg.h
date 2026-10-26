@@ -97,10 +97,28 @@ namespace Portable
       const AffineConstraints<Number>                                     &constraints,
       bool overlap_communication_computation);
 
+    // Assemble the right-hand side for the constant source term f = value on
+    // the device. The vector must be initialized by initialize_dof_vector().
+    void
+    compute_rhs(LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &rhs,
+                const Number                                                      value) const;
+
     const std::vector<std::pair<unsigned int, unsigned int>> &
     get_cell_local_info() const
     {
       return this->cell_local_info;
+    }
+
+    unsigned int
+    get_n_owned_cells() const
+    {
+      return this->n_owned_cells;
+    }
+
+    const Kokkos::View<Number *, MemorySpace::Default::kokkos_space> &
+    get_cell_measures() const
+    {
+      return this->cell_measures;
     }
 
     // --- Metric Tensor and Face Data Getters ---
@@ -217,6 +235,10 @@ namespace Portable
     std::array<unsigned int, n_local_dofs>                            lexicographic_numbering;
     Kokkos::View<Number *, MemorySpace::Default::kokkos_space>
       geometric_transformation_symmetric_cell;
+
+    // the locally owned cells come first in cell_local_info, followed by the ghost cells
+    unsigned int                                               n_owned_cells = 0;
+    Kokkos::View<Number *, MemorySpace::Default::kokkos_space> cell_measures;
 
 
     // face interpolation data
@@ -383,6 +405,7 @@ namespace Portable
 
     // Share topology
     this->cell_local_info      = other.get_cell_local_info();
+    this->n_owned_cells        = other.get_n_owned_cells();
     this->cell_level_index_map = other.get_cell_level_index_map();
     this->face_info_cpu        = other.get_face_info_cpu();
     this->face_info            = other.get_face_info();
@@ -398,6 +421,9 @@ namespace Portable
       Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
         Kokkos::view_alloc("geometric_transformation_symmetric_cell", Kokkos::WithoutInitializing),
         n_cells * symmetric_tensor_dim * n_q_points);
+
+    this->cell_measures = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
+      Kokkos::view_alloc("cell_measures", Kokkos::WithoutInitializing), n_cells);
 
     this->jacobians_times_normal_inner_face =
       Kokkos::View<Number *[2], MemorySpace::Default::kokkos_space>(
@@ -438,6 +464,18 @@ namespace Portable
           "cast_cell_geom", dst.extent(0), KOKKOS_LAMBDA(const size_t i) {
             dst(i) = static_cast<Number>(src(i));
           });
+
+        // the cell measures enter the right-hand side, so they are computed
+        // in full precision instead of being cast from the other operator
+        const auto &triangulation      = dof_handler.get_triangulation();
+        auto        cell_measures_host = Kokkos::create_mirror_view(this->cell_measures);
+        for (unsigned int cell_id = 0; cell_id < n_cells; ++cell_id)
+          {
+            const typename dealii::Triangulation<dim>::cell_iterator cell(
+              &triangulation, cell_local_info[cell_id].first, cell_local_info[cell_id].second);
+            cell_measures_host(cell_id) = cell->measure();
+          }
+        Kokkos::deep_copy(this->cell_measures, cell_measures_host);
       }
 
     if (n_inner_faces > 0)
@@ -761,6 +799,8 @@ namespace Portable
           cell_local_info.push_back(std::make_pair(cell->level(), cell->index()));
         }
 
+    this->n_owned_cells = counter;
+
     for (const auto &cell : triangulation.active_cell_iterators())
       {
         if (cell->is_locally_owned())
@@ -843,10 +883,15 @@ namespace Portable
                              Kokkos::WithoutInitializing),
           n_cells * symmetric_tensor_dim * n_q_points);
 
+      this->cell_measures = Kokkos::View<Number *, MemorySpace::Default::kokkos_space>(
+        Kokkos::view_alloc("cell_measures", Kokkos::WithoutInitializing), n_cells);
+
       if (n_cells > 0)
         {
           auto geometry_tensor_host =
             Kokkos::create_mirror_view(geometric_transformation_symmetric_cell);
+
+          auto cell_measures_host = Kokkos::create_mirror_view(cell_measures);
 
           std::vector<double> quad_weights_1d(n_q_points_1d);
           for (unsigned int q = 0; q < n_q_points_1d; ++q)
@@ -873,7 +918,8 @@ namespace Portable
               for (unsigned int d = 0; d < dim; ++d)
                 h[d] = cell->extent_in_direction(d);
 
-              const double jxw_base = cell->measure();
+              const double jxw_base       = cell->measure();
+              cell_measures_host(cell_id) = jxw_base;
 
               Number components[symmetric_tensor_dim] = {0};
               int    idx                              = 0;
@@ -899,6 +945,7 @@ namespace Portable
             }
 
           Kokkos::deep_copy(geometric_transformation_symmetric_cell, geometry_tensor_host);
+          Kokkos::deep_copy(cell_measures, cell_measures_host);
           Kokkos::fence();
         }
     }
@@ -1149,6 +1196,70 @@ namespace Portable
     LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &vec) const
   {
     matrix_free.initialize_dof_vector(vec);
+  }
+
+  template <int dim, int fe_degree, int n_q_points_1d, typename Number>
+  void
+  LaplaceOperatorDG<dim, fe_degree, n_q_points_1d, Number>::compute_rhs(
+    LinearAlgebra::distributed::Vector<Number, MemorySpace::Default> &rhs,
+    const Number                                                      value) const
+  {
+    Assert(rhs.get_partitioner()->is_compatible(*matrix_free.get_vector_partitioner()),
+           ExcMessage("Vector is not correctly initialized."));
+
+    rhs = 0.;
+
+    if (n_owned_cells == 0)
+      return;
+
+    // For a constant source term on a Cartesian cell K, the integral of the
+    // tensor-product shape function phi_i factorizes into
+    // value * |K| * prod_d m_{i_d}, with the 1d integrals
+    // m_j = sum_q w_q phi_j(x_q) on the reference interval.
+    constexpr unsigned int n_dofs_1d = fe_degree + 1;
+
+    dealii::internal::MatrixFreeFunctions::ShapeInfo<double> shape_info(*quadrature_1d,
+                                                                        dof_handler->get_fe());
+
+    const auto &shape_values_1d = shape_info.get_shape_data().shape_values;
+
+    Kokkos::Array<Number, n_dofs_1d> integrals_1d;
+    for (unsigned int j = 0; j < n_dofs_1d; ++j)
+      {
+        double sum = 0.;
+        for (unsigned int q = 0; q < n_q_points_1d; ++q)
+          sum += quadrature_1d->weight(q) * shape_values_1d[j * n_q_points_1d + q];
+        integrals_1d[j] = sum;
+      }
+
+    // DG degrees of freedom belong to a single cell, so the locally owned
+    // cells write exactly the locally owned entries and neither atomics nor
+    // a compress() are needed.
+    DeviceVector<Number> rhs_device(rhs.get_values(), rhs.locally_owned_size());
+
+    const auto         dof_indices   = this->dof_indices;
+    const auto         cell_measures = this->cell_measures;
+    const unsigned int n_entries     = n_owned_cells * n_local_dofs;
+
+    Kokkos::parallel_for(
+      "DG_compute_rhs",
+      Kokkos::RangePolicy<MemorySpace::Default::kokkos_space::execution_space>(0, n_entries),
+      KOKKOS_LAMBDA(const unsigned int idx) {
+        const unsigned int cell = idx / n_local_dofs;
+        const unsigned int i    = idx % n_local_dofs;
+        const unsigned int dof  = dof_indices(i, cell);
+
+        if (dof == numbers::invalid_unsigned_int)
+          return;
+
+        Number       entry  = value * cell_measures(cell);
+        unsigned int stride = 1;
+        for (unsigned int d = 0; d < dim; ++d, stride *= n_dofs_1d)
+          entry *= integrals_1d[(i / stride) % n_dofs_1d];
+
+        rhs_device(dof) = entry;
+      });
+    Kokkos::fence();
   }
 
   template <int dim, int fe_degree, int n_q_points_1d, typename Number>
