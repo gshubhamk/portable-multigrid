@@ -3,7 +3,7 @@
 // fused halo exchange, overlap of the ghost exchange with the computation and
 // a printout of the halo message statistics of every level.
 //
-// Run command (Jupiter, 16 GPUs on 4 nodes; for 64 GPUs use -N 16 -n 64):
+// Run command (Jupiter, 16 GPUs on 4 nodes):
 //
 //   export OMP_PROC_BIND=false
 //   srun -N 4 -n 16 --ntasks-per-node=4 -c 72 --cpu-bind=cores --gpu-bind=closest \
@@ -16,9 +16,7 @@
 //   1          minsize:             skip mesh sizes whose projected number of
 //                                   continuous Q4 DoFs is smaller than this
 //   500000000  maxsize:             stop at the first mesh size whose projected
-//                                   number of continuous Q4 DoFs exceeds this; with
-//                                   500000000 the last run is cycle 22 (Q4 has
-//                                   269,748,225 DoFs, DG has 524,288,000 DoFs)
+//                                   number of continuous Q4 DoFs exceeds this
 //   5          n_pre_smooth:        degree of the Chebyshev pre-smoother
 //   5          n_post_smooth:       degree of the Chebyshev post-smoother (must equal
 //                                   n_pre_smooth)
@@ -31,11 +29,11 @@
 //   1          overlap:             1 colors the levels on the finest mesh (L7 to
 //                                   L10 and the outer DG operator) and overlaps the
 //                                   ghost exchange with the computation of interior
-//                                   cells in the FE_Q vmult, 0 disables it
-//   1000000    overlap_min_dofs_per_rank: the FE_Q vmult is overlapped only on
-//                                   levels with at least this many DoFs per rank
-//                                   (smaller levels launch all colors and fence
-//                                   once, since overlap costs more than it hides)
+//                                   cells in the FE_Q and DG vmult, 0 disables it
+//   1000000    overlap_min_dofs_per_rank: the vmult is overlapped only on levels
+//                                   with at least this many DoFs per rank (smaller
+//                                   FE_Q levels launch all colors and fence once,
+//                                   since overlap costs more than it hides)
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/base/convergence_table.h>
@@ -116,9 +114,12 @@ namespace multigrid
   bool use_fused_halo_exchange = true;
 
   // Overlap the ghost exchange with the computation in the matrix-vector
-  // products of the continuous (FE_Q) levels: update_ghost_values_start(),
+  // products. On the continuous (FE_Q) levels: update_ghost_values_start(),
   // cells away from the ghost layer, update_ghost_values_finish(), cells at
   // the ghost layer, compress_start(), remaining cells, compress_finish().
+  // On the DG levels: update_ghost_values_start(), owned cells and the faces
+  // between them, update_ghost_values_finish(), ghost cells and the faces to
+  // them (see LaplaceOperatorDG::set_overlap_in_vmult()).
   // The overlapping vmult uses the vector's own exchange, not
   // Portable::HaloExchange. Can be overwritten by the ninth command line
   // argument (0 or 1).
@@ -131,8 +132,10 @@ namespace multigrid
   // depend on the coloring). Of the colored FE_Q levels, only those with at
   // least overlap_min_dofs_per_rank DoFs per rank actually overlap in
   // vmult(); on smaller levels the computation is too short to hide the
-  // exchange and the extra kernel launches would only cost time. The DG
-  // vmult does not overlap yet.
+  // exchange and the extra kernel launches would only cost time. The same
+  // threshold applies to the DG level and the outer DG operator, whose vmult
+  // overlaps the exchange with the work on the owned cells (it does not use
+  // the coloring).
   bool use_overlap = false;
 
   // Can be overwritten by the tenth command line argument.
@@ -471,7 +474,7 @@ namespace multigrid
         const bool overlap_in_vmult =
           colored && level_dof_handlers[level].n_dofs() >=
                        overlap_min_dofs_per_rank * Utilities::MPI::n_mpi_processes(mpi_communicator);
-        if (overlap_in_vmult && level < level_dof_handlers.max_level())
+        if (overlap_in_vmult)
           overlap_levels += " " + std::to_string(level);
 
         if (level < coarse_triangulations.size())
@@ -499,12 +502,14 @@ namespace multigrid
           }
         else
           {
-            level_matrices[level] = std::make_unique<
+            auto dg_matrix = std::make_unique<
               Portable::LaplaceOperatorDG<dim, fe_degree, fe_degree + 1, vcycle_number>>(
               mapping,
               level_dof_handlers[level],
               level_constraints[level],
               colored);
+            dg_matrix->set_overlap_in_vmult(overlap_in_vmult);
+            level_matrices[level] = std::move(dg_matrix);
           }
       }
 
@@ -534,6 +539,9 @@ namespace multigrid
                                                           level_dof_handlers.back(),
                                                           fine_level_constraints,
                                                           overlap_communication_computation);
+        dg_fine_level_matrix->set_overlap_in_vmult(fine_float_matrix->get_overlap_in_vmult());
+        if (dg_fine_level_matrix->get_overlap_in_vmult())
+          pcout << "Overlapping vmult of the outer DG operator" << std::endl;
 
         fine_level_matrix = std::move(dg_fine_level_matrix);
         fine_level_matrix->initialize_dof_vector(solution_device);
@@ -1222,7 +1230,7 @@ main(int argc, char *argv[])
                       << "coarse_granularity is the minimal number of cells per rank "
                       << "on the coarse levels, fused_halo_exchange (0 or 1) selects "
                       << "Portable::HaloExchange for the ghost exchange, overlap (0 or 1) "
-                      << "overlaps the ghost exchange with the computation on the FE_Q levels "
+                      << "overlaps the ghost exchange with the computation on the levels "
                       << "with at least overlap_min_dofs_per_rank DoFs per rank" << std::endl;
           return 1;
         }
@@ -1262,7 +1270,7 @@ main(int argc, char *argv[])
                   << "Use doubling mesh:              " << use_doubling_mesh << std::endl
                   << "Coarse level granularity:       " << coarse_granularity << std::endl
                   << "Fused halo exchange:            " << use_fused_halo_exchange << std::endl
-                  << "Overlap comm./comp. (FE_Q):     " << use_overlap << std::endl
+                  << "Overlap comm./comp.:            " << use_overlap << std::endl
                   << "Overlap min DoFs per rank:      " << overlap_min_dofs_per_rank << std::endl
                   << std::endl;
 
